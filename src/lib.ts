@@ -270,6 +270,9 @@ export function mergeGames(
     if (index >= 0) {
       const prev = result[index];
       const next = { ...prev };
+      // A collection row establishes ownership even when the export has no
+      // Owned column. Achievement-only updates must not change ownership.
+      if (!achievementsOnly) next.owned = game.owned;
       for (const key of fields) {
         if (
           key === "name" ||

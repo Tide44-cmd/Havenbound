@@ -48,6 +48,8 @@ Import preview reports consolidated duplicates, including duplicates already sav
 
 **Merge** is recommended. **Replace** marks old records unowned, then merges the new owned collection, preserving unrelated planning and achievement records. **Clear owned collection** also retains records and plans. Use the Owned only collection filter to show/hide these records.
 
+After clearing, reimporting a collection restores ownership of matching games and makes them visible again, while preserving their IDs, notes and plans. A mapped `Owned=false` is respected. Achievement-only imports never change ownership. The same CSV can be selected again without leaving the import screen; the success message reports the profile's owned game count.
+
 Example synthetic formats are in `public/examples/`. No real user export is committed. These synthetic titles/counts are documentation only; the app never seeds fabricated achievement statistics.
 
 ## Achievement data

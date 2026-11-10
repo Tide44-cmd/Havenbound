@@ -1,4 +1,57 @@
 import { test, expect } from "@playwright/test";
+test("clearing and reimporting the same file restores the collection", async ({
+  page,
+}) => {
+  const file = {
+    name: "collection.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      "Title,Achievements Earned,Achievements Total,Achv\nReturn,1,33,33\nNext,,,50",
+    ),
+  };
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Import collection", exact: true })
+    .click();
+  await page.getByLabel("CSV export").setInputFiles(file);
+  await page.getByRole("button", { name: "Confirm import" }).click();
+  await expect(page.getByRole("status")).toContainText("Import saved");
+  await expect(page.getByLabel("CSV export")).toHaveValue("");
+  await page.getByRole("button", { name: "Collection", exact: true }).click();
+  await expect(page.locator(".game-card")).toHaveCount(2);
+  await page
+    .getByRole("combobox", { name: "Backlog list for Return", exact: true })
+    .selectOption("Want to Play");
+  await page
+    .getByRole("button", { name: "Import & settings", exact: true })
+    .click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page
+    .getByRole("button", { name: "Clear owned collection", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Collection", exact: true }).click();
+  await expect(page.locator(".game-card")).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Import & settings", exact: true })
+    .click();
+  await page.getByLabel("CSV export").setInputFiles(file);
+  await page.getByRole("button", { name: "Confirm import" }).click();
+  await expect(page.getByRole("status")).toContainText("2 owned games");
+  await page.getByRole("button", { name: "Collection", exact: true }).click();
+  await expect(page.locator(".game-card")).toHaveCount(2);
+  await expect(
+    page.getByRole("combobox", {
+      name: "Backlog list for Return",
+      exact: true,
+    }),
+  ).toHaveValue("Want to Play");
+  await page.reload();
+  await expect(page.locator(".game-card")).toHaveCount(2);
+  await page
+    .getByRole("button", { name: "Virtual library", exact: true })
+    .click();
+  await expect(page.locator(".library-book")).toHaveCount(2);
+});
 test("conflicting duplicate counts require review before import", async ({
   page,
 }) => {
@@ -6,15 +59,13 @@ test("conflicting duplicate counts require review before import", async ({
   await page
     .getByRole("button", { name: "Import collection", exact: true })
     .click();
-  await page
-    .getByLabel("CSV export")
-    .setInputFiles({
-      name: "conflicts.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from(
-        "Title,Achievements Earned,Achievements Total\nConflict,24,24\nConflict,175,175",
-      ),
-    });
+  await page.getByLabel("CSV export").setInputFiles({
+    name: "conflicts.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      "Title,Achievements Earned,Achievements Total\nConflict,24,24\nConflict,175,175",
+    ),
+  });
   await expect(
     page.getByRole("button", { name: "Confirm import" }),
   ).toBeDisabled();
@@ -36,15 +87,13 @@ test("fallback totals, genre tags, duplicate rows and animated percentage cards"
   await page
     .getByRole("button", { name: "Import collection", exact: true })
     .click();
-  await page
-    .getByLabel("CSV export")
-    .setInputFiles({
-      name: "reordered.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from(
-        'Achv,XCT Genre,Title,Genre,Platform,Achievements Total,Achievements Earned\n50,"Action Horror, Horror",HalfGifted,Adventure,"Windows, Xbox One",50,25\n50,"Action Horror, Horror",HalfGifted,Adventure,"Xbox One, Windows, Xbox Play Anywhere",50,25\n33,Horror,Unplayed,Adventure,Xbox One,,',
-      ),
-    });
+  await page.getByLabel("CSV export").setInputFiles({
+    name: "reordered.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      'Achv,XCT Genre,Title,Genre,Platform,Achievements Total,Achievements Earned\n50,"Action Horror, Horror",HalfGifted,Adventure,"Windows, Xbox One",50,25\n50,"Action Horror, Horror",HalfGifted,Adventure,"Xbox One, Windows, Xbox Play Anywhere",50,25\n33,Horror,Unplayed,Adventure,Xbox One,,',
+    ),
+  });
   await expect(page.getByText(/1 duplicates consolidated/)).toBeVisible();
   await page.getByRole("button", { name: "Confirm import" }).click();
   await expect(page.getByRole("status")).toContainText("Import saved");

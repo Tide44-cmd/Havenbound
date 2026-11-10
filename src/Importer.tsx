@@ -27,7 +27,7 @@ export default function Importer({
     ? mergeGames(
         mode === "replace" ? games.map((g) => ({ ...g, owned: false })) : games,
         parsed.games,
-        mode === "replace" ? { ...map, owned: map.owned || "__owned" } : map,
+        map,
         mode === "achievements",
         matchTitles,
         resolutions,
@@ -47,9 +47,14 @@ export default function Importer({
           type="file"
           accept=".csv,text/csv"
           onChange={async (e) => {
+            const file = e.currentTarget.files?.[0];
+            // Reset immediately so selecting this same file fires change again.
+            e.currentTarget.value = "";
+            if (!file) return;
+            setCsv(null);
+            setMessage("");
+            setError("");
             try {
-              const file = e.target.files?.[0];
-              if (!file) return;
               if (file.size > 20 * 1024 * 1024)
                 throw Error("Please choose a CSV under 20 MB.");
               const result = parseCsv(await file.text());
@@ -223,7 +228,7 @@ export default function Importer({
                   }
                   onImport(valid.data, preview.aliases);
                   setMessage(
-                    "Import saved. Your notes, backlog lists and calendar plans have been preserved.",
+                    `Import saved. ${valid.data.filter((g) => g.owned).length.toLocaleString()} owned games in this profile. Your notes, backlog lists and calendar plans have been preserved.`,
                   );
                   setCsv(null);
                 }}
