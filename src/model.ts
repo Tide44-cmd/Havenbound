@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { platformTags } from "./platforms";
 const hours = z.number().finite().min(0).max(100000);
 const count = z.number().int().min(0).max(10000000);
 export const statuses = [
@@ -30,13 +31,15 @@ export const gameSchema = z
     id: z.string(),
     productId: z.string(),
     name: z.string().min(1),
-    platform: z.string(),
+    platform: z.string().transform((value) => platformTags(value).join(", ")),
     edition: z.string(),
     genre: z.string().default(""),
     xctGenre: z.string().default(""),
     status: z.enum(statuses),
     owned: z.boolean(),
     included: z.boolean(),
+    ignored: z.boolean().default(false),
+    unobtainable: z.boolean().default(false),
     earned: count.nullable(),
     total: count.nullable(),
     tags: z.array(z.string()),
@@ -57,9 +60,19 @@ export const gameSchema = z
     "Earned cannot exceed total",
   );
 export type Game = z.infer<typeof gameSchema>;
+export const completionOptionsSchema = z.object({
+  includeWantToPlay: z.boolean().default(false),
+  excludeUnobtainable: z.boolean().default(false),
+});
+export type CompletionOptions = z.infer<typeof completionOptionsSchema>;
+export const defaultCompletionOptions: CompletionOptions = {
+  includeWantToPlay: false,
+  excludeUnobtainable: false,
+};
 export const profileSchema = z.object({
   id: z.string(),
   name: z.string().min(1),
+  completionOptions: completionOptionsSchema.default(defaultCompletionOptions),
   games: z.array(gameSchema),
   order: z.array(z.string()),
   schedule: z.array(
@@ -84,6 +97,7 @@ export const backupSchema = z
     active: z.string(),
     precision: z.number().int().min(1).max(4),
     ambientMotion: z.boolean().default(true),
+    theme: z.enum(["woodland", "ocean", "ember"]).default("woodland"),
     profiles: z.array(profileSchema).min(1),
   })
   .superRefine((s, ctx) => {
@@ -109,6 +123,8 @@ export function newGame(name = ""): Game {
     status: "unstarted",
     owned: true,
     included: false,
+    ignored: false,
+    unobtainable: false,
     earned: null,
     total: null,
     tags: [],
@@ -130,6 +146,7 @@ export function newProfile(name: string): Profile {
     id: crypto.randomUUID(),
     name,
     games: [],
+    completionOptions: { ...defaultCompletionOptions },
     order: [],
     schedule: [],
     weekday: 2,
@@ -147,6 +164,7 @@ export function initialData(): AppData {
     active: p.id,
     precision: 2,
     ambientMotion: true,
+    theme: "woodland",
     profiles: [p],
   };
 }

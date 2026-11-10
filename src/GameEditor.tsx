@@ -7,7 +7,7 @@ import {
   lanes,
   dayKey,
 } from "./model";
-import { achievementStatus } from "./lib";
+import { achievementStatus, isUnobtainable } from "./lib";
 export default function GameEditor({
   game,
   onSave,
@@ -87,6 +87,7 @@ export default function GameEditor({
             }
             onSave({
               ...result.data,
+              unobtainable: isUnobtainable(result.data),
               status,
               completedAt:
                 status === "completed" ? g.completedAt || dayKey() : "",
@@ -110,7 +111,7 @@ export default function GameEditor({
                   {
                     name: "Game title",
                     productId: "Xbox Product ID",
-                    platform: "Platform / stack",
+                    platform: "Platforms · comma separated",
                     edition: "Edition",
                     genre: "Genre",
                     xctGenre: "XCT Genre · comma separated",
@@ -140,8 +141,9 @@ export default function GameEditor({
               </select>
               {g.earned !== null && (
                 <small>
-                  Calculated from achievement counts. Backlog lists track what
-                  you want to play separately.
+                  Progress follows achievement counts. Use Ignored or
+                  Unobtainable below to change tracking without changing your
+                  progress.
                 </small>
               )}
             </label>
@@ -223,17 +225,30 @@ export default function GameEditor({
             />
           </label>
           <div className="checks">
-            {(["owned", "included", "favorite", "coop"] as const).map((k) => (
+            {(
+              ["owned", "ignored", "unobtainable", "favorite", "coop"] as const
+            ).map((k) => (
               <label key={k}>
                 <input
                   type="checkbox"
-                  checked={g[k]}
-                  onChange={(e) => update(k, e.target.checked)}
+                  checked={k === "unobtainable" ? isUnobtainable(g) : g[k]}
+                  onChange={(e) =>
+                    k === "unobtainable"
+                      ? set({
+                          ...g,
+                          unobtainable: e.target.checked,
+                          status:
+                            g.status === "unobtainable" ? "unknown" : g.status,
+                        })
+                      : update(k, e.target.checked)
+                  }
                 />
                 {
                   {
                     owned: "Owned",
-                    included: "Include in achievement statistics",
+                    ignored: "Ignored · always exclude from completion stats",
+                    unobtainable:
+                      "Unobtainable · remaining achievements cannot be earned",
                     favorite: "Favourite",
                     coop: "Co-op supported (manually verified)",
                   }[k]

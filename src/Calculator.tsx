@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Game } from "./model";
-import { percentage, required, stats } from "./lib";
+import { Game, CompletionOptions } from "./model";
+import { percentage, required, stats, completionRule } from "./lib";
 type Scenario = {
   id: string;
   name: string;
@@ -10,11 +10,15 @@ type Scenario = {
 export default function Calculator({
   games,
   precision,
+  options,
+  onOptionsChange,
 }: {
   games: Game[];
   precision: number;
+  options: CompletionOptions;
+  onOptionsChange: (options: CompletionOptions) => void;
 }) {
-  const base = stats(games);
+  const base = stats(games, options);
   const [items, set] = useState<Scenario[]>([]);
   const [target, setTarget] = useState(90);
   const [selected, select] = useState("");
@@ -33,6 +37,49 @@ export default function Calculator({
     ) && earned <= total;
   return (
     <>
+      <section className="panel completion-options">
+        <h2>What counts towards completion?</h2>
+        <p>
+          In-progress and completed games count. Ignored games never count.
+          Not-started games only count when planned as Want to play and enabled
+          below. Games with unknown counts are excluded.
+        </p>
+        <div className="checks">
+          <label>
+            <input
+              type="checkbox"
+              checked={options.includeWantToPlay}
+              onChange={(e) => {
+                set([]);
+                onOptionsChange({
+                  ...options,
+                  includeWantToPlay: e.target.checked,
+                });
+              }}
+            />
+            Include Want to play
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={options.excludeUnobtainable}
+              onChange={(e) => {
+                set([]);
+                onOptionsChange({
+                  ...options,
+                  excludeUnobtainable: e.target.checked,
+                });
+              }}
+            />
+            Exclude Unobtainable
+          </label>
+        </div>
+        <small>
+          Saved for this profile and applied to all completion totals. Excluding
+          a game removes both its earned and total achievements. Changing these
+          options clears sandbox scenarios.
+        </small>
+      </section>
       <div className="metric-grid">
         <div className="metric">
           <span>Current completion</span>
@@ -64,8 +111,8 @@ export default function Calculator({
         </p>
         {base.missing > 0 && (
           <p className="notice">
-            {base.missing} included games have unknown counts and are excluded
-            from these totals.
+            {base.missing} games have unknown counts and are excluded from these
+            totals.
           </p>
         )}
         <div className="inline">
@@ -77,7 +124,10 @@ export default function Calculator({
             <option value="">Choose a collection game</option>
             {games
               .filter(
-                (g) => g.total !== null && !items.some((i) => i.id === g.id),
+                (g) =>
+                  !g.ignored &&
+                  g.total !== null &&
+                  !items.some((i) => i.id === g.id),
               )
               .map((g) => (
                 <option key={g.id} value={g.id}>
@@ -89,7 +139,7 @@ export default function Calculator({
             onClick={() => {
               const g = games.find((g) => g.id === selected);
               if (!g || g.total === null) return;
-              const counted = g.included && g.earned !== null;
+              const counted = completionRule(g, options).included;
               set([
                 ...items,
                 {

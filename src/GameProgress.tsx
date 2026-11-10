@@ -1,5 +1,48 @@
 import { Game } from "./model";
-import { genreTags, percentage } from "./lib";
+import { genreTags, percentage, platformTags, isUnobtainable } from "./lib";
+export function PlatformBadges({ game }: { game: Game }) {
+  return (
+    <div className="platform-badges" aria-label="Platforms">
+      {platformTags(game.platform).map((tag) => (
+        <span key={tag}>{tag}</span>
+      ))}
+    </div>
+  );
+}
+export function TrackingSelect({
+  game,
+  onChange,
+}: {
+  game: Game;
+  onChange: (g: Game) => void;
+}) {
+  return (
+    <select
+      aria-label={"Tracking for " + game.name}
+      value={
+        game.ignored
+          ? "ignored"
+          : isUnobtainable(game)
+            ? "unobtainable"
+            : "normal"
+      }
+      onChange={(e) =>
+        onChange({
+          ...game,
+          ignored: e.target.value === "ignored",
+          unobtainable:
+            e.target.value === "unobtainable" ||
+            (e.target.value === "ignored" && isUnobtainable(game)),
+          status: game.status === "unobtainable" ? "unknown" : game.status,
+        })
+      }
+    >
+      <option value="normal">Track normally</option>
+      <option value="ignored">Ignored · exclude from stats</option>
+      <option value="unobtainable">Unobtainable</option>
+    </select>
+  );
+}
 export function GameProgress({ game: g }: { game: Game }) {
   const known = g.earned !== null && g.total !== null && g.total > 0;
   const value = known ? percentage(g.earned!, g.total!) : null;

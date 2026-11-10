@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { statuses, statusLabels } from "./model";
 export default function StatusFilter({
   selected,
   onChange,
@@ -27,8 +26,13 @@ export default function StatusFilter({
     };
   }, []);
   const options = [
-    ...statuses.map((s) => ({ value: s, label: statusLabels[s] })),
-    { value: "next", label: "Want to play · not started" },
+    { value: "ignored", label: "Ignored" },
+    { value: "unstarted", label: "Not started" },
+    { value: "next", label: "Want to play" },
+    { value: "started", label: "In progress" },
+    { value: "completed", label: "Completed" },
+    { value: "unobtainable", label: "Unobtainable" },
+    { value: "unknown", label: "Unknown" },
   ];
   return (
     <details ref={ref} className="status-filter">
@@ -65,8 +69,8 @@ export default function StatusFilter({
           ))}
         </fieldset>
         <p>
-          Incomplete includes games in progress. Leaving all unchecked shows all
-          statuses.
+          Select any combination. Leaving all unchecked shows all games,
+          including ignored games.
         </p>
       </div>
     </details>

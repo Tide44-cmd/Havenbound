@@ -79,9 +79,11 @@ export default function Importer({
             determine progress: 0 = not started, some = started, all =
             completed. Columns match by name, not position. Achv supplies the
             total when Achievements Total is blank. With Achv mapped and a known
-            total, blank earned means zero; these unplayed games are not
-            automatically included in achievement statistics. Genre and XCT
-            Genre split on commas, preserving multiword tags.
+            total, blank earned means zero. Not-started games are excluded from
+            completion stats; Want to play games can be enabled in Completion
+            Lab. Ignored and Unobtainable choices survive reimports. Platforms
+            split on commas, semicolons or newlines, preserving Xbox Series X|S.
+            Genre and XCT Genre split on commas, preserving multiword tags.
           </p>
           <label className="checks">
             <input
@@ -109,24 +111,26 @@ export default function Importer({
             </select>
           </label>
           <div className="form-grid mapping">
-            {fields.map((f) => (
-              <label key={f}>
-                {f}
-                <select
-                  value={map[f] || ""}
-                  onChange={(e) => setMap({ ...map, [f]: e.target.value })}
-                >
-                  <option value="">
-                    {f === "status"
-                      ? "Automatic from achievement counts"
-                      : "Not provided"}
-                  </option>
-                  {csv.headers.map((h) => (
-                    <option key={h}>{h}</option>
-                  ))}
-                </select>
-              </label>
-            ))}
+            {fields
+              .filter((f) => f !== "included")
+              .map((f) => (
+                <label key={f}>
+                  {f}
+                  <select
+                    value={map[f] || ""}
+                    onChange={(e) => setMap({ ...map, [f]: e.target.value })}
+                  >
+                    <option value="">
+                      {f === "status"
+                        ? "Automatic from achievement counts"
+                        : "Not provided"}
+                    </option>
+                    {csv.headers.map((h) => (
+                      <option key={h}>{h}</option>
+                    ))}
+                  </select>
+                </label>
+              ))}
           </div>
           {parsed && preview && (
             <>

@@ -18,7 +18,7 @@ npm run preview
 
 ## Features
 
-- Dark woodland responsive dashboard and collapsible navigation.
+- Responsive dashboard with Woodland, Moonlit ocean (blue) and Ember (warm plum) themes and collapsible navigation.
 - Independent profiles, collection search, filters, tags, favourites, platform editions, priorities and manual editing.
 - Four backlog lists with drag ordering and keyboard/touch alternatives, notes, remaining-time estimates and monthly/annual goals.
 - Monthly calendar with drag scheduling and form alternatives; allocations share weekday/weekend capacity, respect manual remaining hours, and recalculate when a game moves.
@@ -30,13 +30,15 @@ npm run preview
 
 Open **Import & settings**, choose a CSV, review mappings and preview, then confirm. The expected XCT headers from the supplied examples are `Title,Source,Gamertag,Publisher,Developer,Type,Date,Price,Currency,Market,Status,Product ID`.
 
-XCT's `Status` is a purchase state (Active/Fulfilled), **not** achievement progress. It is intentionally unmapped for XCT files, including newer exports without Product IDs. Header mapping uses names, not column positions, and can be adjusted in the preview. `Achievements Total` takes precedence; `Achv` supplies a per-row fallback total. With Achv mapped and a known total, blank earned counts mean zero (unplayed). Without a known total/fallback, blanks remain unknown. Inferred unplayed games are not automatically included in the overall achievement denominator; explicitly provided earned/total pairs are included unless overridden. Known counts derive progress: zero earned is unstarted, at least one is started, and earned equal to a positive total is completed. `0/0` is not a completion.
+XCT's `Status` is a purchase state (Active/Fulfilled), **not** achievement progress. It is intentionally unmapped for XCT files, including newer exports without Product IDs. Header mapping uses names, not column positions, and can be adjusted in the preview. `Achievements Total` takes precedence; `Achv` supplies a per-row fallback total. With Achv mapped and a known total, blank earned counts mean zero (unplayed). Without a known total/fallback, blanks remain unknown. Known counts derive progress: zero earned is not started, at least one is in progress, and earned equal to a positive total is completed. `0/0` is not a completion. Completion totals follow the status and tracking rules below, regardless of whether zero was explicit or inferred.
+
+Platforms split on commas, semicolons or newlines, deduplicate case-insensitively and display as individual tags. `Xbox Series X|S` stays intact. The platform filter lists individual platforms and matches games available on that platform. Existing saved collections and restored backups receive the same normalization; no reimport is necessary.
 
 Both `Genre` and `XCT Genre` are imported and displayed as genre badges. Commas separate tags; spaces do not: `Action Horror, Horror` creates `Action Horror` and `Horror`. Both tags are individually filterable in Virtual library. Custom personal tags remain separate. Old backups receive empty optional genre fields automatically.
 
 Trailing export suffix `Gifted` is removed (including attached suffixes such as `Fallout 76Gifted`). Internal words are retained, and `(PC)`/edition labels remain intact. Importing also cleans existing matched titles.
 
-Older exports may omit platform and achievements: missing platforms default to Xbox Series X|S / Standard, while progress is unknown unless explicitly provided. Ownership alone never includes a title in achievement statistics. Bundles/DLC are retained as exported titles; no catalogue API infers their contents. Mark them unowned or adjust their inclusion as appropriate.
+Older exports may omit platform and achievements: missing platforms default to Xbox Series X|S / Standard, while progress is unknown unless explicitly provided. Ownership alone never includes a title in achievement statistics. Bundles/DLC are retained as exported titles; no catalogue API infers their contents. Mark duplicate or unwanted entries Ignored to exclude them from completion totals.
 
 When upgrading an older collection, newer exports may omit Product IDs and change platform labels. The optional **Match unique titles across changed platform labels** checkbox matches a unique title and edition in both datasets when an ID is missing. It preserves the old ID, notes and plans. Ambiguous titles block import, rather than combining distinct stacks. Export a backup first and review matched/new counts; default matching still respects platform editions.
 
@@ -54,9 +56,20 @@ Example synthetic formats are in `public/examples/`. No real user export is comm
 
 ## Achievement data
 
-Choose achievement-only mode and map title, Product ID where known, platform, edition, earned and total. Only matching existing games update; unmatched rows are skipped and the matched count is shown. Blank values mean unknown. Counts must be non-negative integers with earned ≤ total. Complete imported pairs are included in statistics unless explicitly marked false. You can also edit counts and inclusion on any game.
+Choose achievement-only mode and map title, Product ID where known, platform, edition, earned and total. Only matching existing games update; unmatched rows are skipped and the matched count is shown. Blank values mean unknown. Counts must be non-negative integers with earned ≤ total. Counts can also be edited in game details.
 
-The calculator only uses included games with both known counts, and warns about missing pairs. For a counted game, a hypothetical completion adds only its remaining achievements. For a previously uncounted game, it adds all available achievements to the denominator. Custom scenarios specify additional earned and newly introduced counts. Scenarios are temporary and never mutate collection data. Targets use integer/BigInt ceiling arithmetic, independently of rounded display values.
+Completion statistics follow these rules:
+
+- Ignored: always excluded, even if completed. Select Ignored in the card tracking dropdown or game details. The Ignored collection filter is your ignore list.
+- Not started: excluded, whether zero was explicitly supplied or inferred.
+- Want to play: unstarted planned games count only when **Include Want to play** is enabled in Completion Lab (off by default).
+- In progress and Completed: included when both achievement counts are known.
+- Unobtainable: a separate manual flag that preserves earned progress. **Exclude Unobtainable** removes the whole game's earned and total counts (off by default). A game can be both ignored and unobtainable.
+- Unknown counts and zero available achievements: excluded.
+
+Completion Lab preferences are saved per profile and also apply to Overview and card inclusion explanations. Manual tracking choices survive reimports and backups. Legacy `included` values are retained for backup compatibility but no longer determine totals; previous import provenance cannot override these rules. Existing data defaults to not ignored, with both calculation toggles off. Select **Track normally** to clear manual tracking flags.
+
+The calculator warns about missing counts. For a counted game, a hypothetical completion adds only its remaining achievements. For a previously uncounted game, it adds all available achievements to the denominator. Ignored games are omitted from scenario choices. Changing inclusion toggles clears existing scenarios to prevent stale or double-counted denominators. Custom scenarios specify additional earned and newly introduced counts. Scenarios are temporary and never mutate collection data. Targets use integer/BigInt ceiling arithmetic, independently of rounded display values.
 
 ## Planning and goals
 
@@ -103,6 +116,6 @@ For browser workflow checks, run `npx playwright install chromium` once, then `n
 
 This MVP is deliberately local: no live Xbox data, automatic achievement sync, social messaging, server accounts or Discord connection. The calendar is an estimate, not a deadline.
 
-Collection status filters support multiple selections: a game appears if it matches any selected status. Incomplete includes games in progress; selecting no statuses shows everything. Readable labels such as Not started and In progress retain the existing saved status values.
+Collection status filters support multiple selections: a game appears if it matches any selected status. In progress also covers the legacy Incomplete value. Want to play has its own filter; ignored games appear in the Ignored filter and All statuses. Selecting no statuses shows everything. Readable labels retain the existing saved progress values. Choose a colour theme in **Import & settings**; the preference is saved and included in backups.
 
 The woodland scene fills the viewport with two drifting mist layers and 36 fireflies (18 on touch devices). Gentle mouse parallax updates at most once per animation frame when the pointer moves. Pause disables motion and pointer tracking; reduced-motion preferences and touch devices disable parallax.

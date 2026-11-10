@@ -727,6 +727,7 @@ footer span {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 20px;
+  padding: 6px 10px 16px 4px;
 }
 .game-card {
   display: flex;
@@ -735,6 +736,7 @@ footer span {
   border-radius: 9px;
   overflow: hidden;
   background: var(--panel);
+  box-shadow: 5px 6px 0 #090e0b66;
 }
 .cover-button {
   display: block;
@@ -760,6 +762,8 @@ footer span {
 .card-actions {
   margin-top: auto;
   padding-top: 4px;
+  display: grid;
+  gap: 8px;
 }
 .card-actions .source {
   min-height: 2.8em;
@@ -1492,13 +1496,14 @@ td {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 20px;
+  padding: 6px 10px 10px 4px;
 }
 .library-book {
   border: 1px solid #45513c;
   border-radius: 5px 10px 6px 5px;
   overflow: hidden;
   background: #1e2920;
-  box-shadow: -5px 4px 0 #0d160f;
+  box-shadow: 5px 4px 0 #0d160f;
 }
 .library-book .cover {
   height: 225px;
@@ -1595,7 +1600,7 @@ td {
       rotateY(-1.3deg);
     border-color: #98aa6d;
     box-shadow:
-      0 12px 25px #0005,
+      8px 12px 25px #0005,
       0 0 22px #b6c79924;
   }
 }

@@ -7,19 +7,19 @@ test("multiple status filters and responsive pointer-reactive scenery", async ({
   await page
     .getByRole("button", { name: "Import collection", exact: true })
     .click();
-  await page
-    .getByLabel("CSV export")
-    .setInputFiles({
-      name: "filters.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from(
-        "Title,Achievements Earned,Achievements Total\nAlpha,0,33\nBeta,1,33\nComplete,33,33\nUnknown,,",
-      ),
-    });
+  await page.getByLabel("CSV export").setInputFiles({
+    name: "filters.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      "Title,Achievements Earned,Achievements Total\nAlpha,0,33\nBeta,1,33\nComplete,33,33\nUnknown,,",
+    ),
+  });
   await page.getByRole("button", { name: "Confirm import" }).click();
   await page.getByRole("button", { name: "Collection", exact: true }).click();
   await page.getByLabel("Filter statuses", { exact: true }).click();
-  await page.getByRole("checkbox", { name: "Incomplete", exact: true }).check();
+  await page
+    .getByRole("checkbox", { name: "In progress", exact: true })
+    .check();
   await page
     .getByRole("checkbox", { name: "Not started", exact: true })
     .check();
@@ -72,7 +72,9 @@ test("multiple status filters and responsive pointer-reactive scenery", async ({
       fullPage: true,
     });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("checkbox", { name: "Incomplete", exact: true }).check();
+  await page
+    .getByRole("checkbox", { name: "In progress", exact: true })
+    .check();
   await page
     .getByRole("checkbox", { name: "Not started", exact: true })
     .check();
@@ -407,7 +409,6 @@ test("import, plan, calculate, persist and isolate profiles", async ({
     .click();
   await page.getByLabel("Achievements earned").fill("10");
   await page.getByLabel("Achievements available").fill("50");
-  await page.getByLabel("Include in achievement statistics").check();
   await page
     .getByRole("combobox", { name: "Backlog list", exact: true })
     .selectOption("Currently Playing");

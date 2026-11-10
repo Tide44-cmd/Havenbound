@@ -1,14 +1,17 @@
 import { useMemo, useState } from "react";
 import { Trees, Shuffle, Compass } from "lucide-react";
-import { Game, statusLabels } from "./model";
+import { Game } from "./model";
 import {
   alphabet,
   huntCandidates,
   randomGames,
   unfinished,
   genreTags,
+  matchesStatuses,
+  collectionStatus,
+  isUnobtainable,
 } from "./lib";
-import { GameProgress, GenreBadges } from "./GameProgress";
+import { GameProgress, GenreBadges, PlatformBadges } from "./GameProgress";
 const modes = [
   "Shelves",
   "A–Z challenge",
@@ -41,10 +44,7 @@ export default function VirtualLibrary({
     (g) =>
       g.name.toLowerCase().includes(search.toLowerCase()) &&
       (!genre || genreTags(g).includes(genre)) &&
-      (progress === "all" ||
-        (progress === "next"
-          ? g.lane === "Want to Play" && g.status === "unstarted"
-          : g.status === progress)),
+      matchesStatuses(g, progress === "all" ? [] : [progress]),
   );
   const candidates =
     mode === "Give me a hunt"
@@ -132,6 +132,8 @@ export default function VirtualLibrary({
             }}
           >
             <option value="all">All progress</option>
+            <option value="ignored">Ignored</option>
+            <option value="unobtainable">Unobtainable</option>
             <option value="unstarted">Not started</option>
             <option value="started">In progress</option>
             <option value="completed">Completed</option>
@@ -231,9 +233,12 @@ export default function VirtualLibrary({
                   <button className="game-title" onClick={() => onEdit(g)}>
                     {g.name}
                   </button>
-                  <small>{g.platform}</small>
+                  <PlatformBadges game={g} />
                   <p className="library-progress">
-                    <span>{statusLabels[g.status]}</span>
+                    <span>
+                      {collectionStatus(g)}
+                      {isUnobtainable(g) ? " · Unobtainable" : ""}
+                    </span>
                   </p>
                   <GameProgress game={g} />
                   <GenreBadges game={g} />

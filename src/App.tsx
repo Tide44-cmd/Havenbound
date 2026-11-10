@@ -44,8 +44,17 @@ import {
   achievementStatus,
   remapPlans,
   matchesStatuses,
+  collectionStatus,
+  completionRule,
+  platformTags,
+  isUnobtainable,
 } from "./lib";
-import { GameProgress, GenreBadges } from "./GameProgress";
+import {
+  GameProgress,
+  GenreBadges,
+  PlatformBadges,
+  TrackingSelect,
+} from "./GameProgress";
 import VirtualLibrary from "./VirtualLibrary";
 import GameEditor from "./GameEditor";
 import Importer from "./Importer";
@@ -114,7 +123,10 @@ export default function App() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
   const p = data?.profiles.find((p) => p.id === data.active);
-  const s = useMemo(() => stats(p?.games || []), [p]);
+  const s = useMemo(() => stats(p?.games || [], p?.completionOptions), [p]);
+  useEffect(() => {
+    document.documentElement.dataset.theme = data?.theme || "woodland";
+  }, [data?.theme]);
   const plans = useMemo(
     () => (p ? allocate(p) : { days: [], unscheduled: [] }),
     [p],
@@ -147,7 +159,7 @@ export default function App() {
   }
   function changeGame(g: Game) {
     if (!p) return;
-    g = { ...g, status: achievementStatus(g) };
+    g = { ...g, unobtainable: isUnobtainable(g), status: achievementStatus(g) };
     update({
       ...p,
       games: p.games.some((x) => x.id === g.id)
@@ -227,7 +239,7 @@ export default function App() {
         (!owned || g.owned) &&
         g.name.toLowerCase().includes(query.toLowerCase()) &&
         matchesStatuses(g, filters) &&
-        (platform === "all" || g.platform === platform) &&
+        (platform === "all" || platformTags(g.platform).includes(platform)) &&
         (!tag ||
           g.tags.some((t) => t.toLowerCase().includes(tag.toLowerCase()))) &&
         (!onlyFavorites || g.favorite),
@@ -704,7 +716,11 @@ export default function App() {
                   onChange={(e) => setPlatform(e.target.value)}
                 >
                   <option value="all">All platforms</option>
-                  {[...new Set(p.games.map((g) => g.platform))]
+                  {[
+                    ...new Set(
+                      p.games.flatMap((g) => platformTags(g.platform)),
+                    ),
+                  ]
                     .sort()
                     .map((s) => (
                       <option key={s}>{s}</option>
@@ -775,7 +791,8 @@ export default function App() {
                       <div className="game-info">
                         <div className="section-head">
                           <span className="status">
-                            {statusLabels[g.status]}
+                            {collectionStatus(g)}
+                            {isUnobtainable(g) ? " · Unobtainable" : ""}
                           </span>
                           <button
                             className={"star " + (g.favorite ? "selected" : "")}
@@ -796,9 +813,8 @@ export default function App() {
                         >
                           {g.name}
                         </button>
-                        <small>
-                          {g.platform} · {g.edition}
-                        </small>
+                        <PlatformBadges game={g} />
+                        <small>{g.edition}</small>
                         <div className="game-meta">
                           <span>{g.priority}</span>
                         </div>
@@ -820,11 +836,9 @@ export default function App() {
                               <option key={l}>{l}</option>
                             ))}
                           </select>
+                          <TrackingSelect game={g} onChange={changeGame} />
                           <small className="source">
-                            {g.source === "csv"
-                              ? "Imported collection data"
-                              : "Manually entered"}
-                            {g.included ? " · Included in stats" : ""}
+                            {completionRule(g, p.completionOptions).reason}
                           </small>
                         </div>
                       </div>
@@ -1007,7 +1021,15 @@ export default function App() {
           )}
           {page === "Calendar" && <Calendar profile={p} update={update} />}
           {page === "Completion lab" && (
-            <Calculator games={p.games} precision={data.precision} />
+            <Calculator
+              key={p.id}
+              games={p.games}
+              precision={data.precision}
+              options={p.completionOptions}
+              onOptionsChange={(completionOptions) =>
+                update({ ...p, completionOptions })
+              }
+            />
           )}
           {page === "Friends" && (
             <section className="panel">
@@ -1145,6 +1167,22 @@ export default function App() {
                     {[1, 2, 3, 4].map((x) => (
                       <option key={x}>{x}</option>
                     ))}
+                  </select>
+                </label>
+                <label>
+                  Colour theme
+                  <select
+                    value={data.theme}
+                    onChange={(e) =>
+                      persist({
+                        ...data,
+                        theme: e.target.value as AppData["theme"],
+                      })
+                    }
+                  >
+                    <option value="woodland">Woodland · green</option>
+                    <option value="ocean">Moonlit ocean · blue</option>
+                    <option value="ember">Ember · warm plum</option>
                   </select>
                 </label>
               </section>

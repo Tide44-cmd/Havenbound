@@ -1,19 +1,71 @@
 import Papa from "papaparse";
-import { Game, Profile, newGame, dayKey, statuses } from "./model";
+import {
+  Game,
+  Profile,
+  newGame,
+  dayKey,
+  statuses,
+  CompletionOptions,
+  defaultCompletionOptions,
+  statusLabels,
+} from "./model";
+import { platformTags } from "./platforms";
+export { platformTags } from "./platforms";
+export const isUnobtainable = (g: Game) =>
+  g.unobtainable || g.status === "unobtainable";
+export const isWantToPlay = (g: Game) =>
+  g.lane === "Want to Play" &&
+  (g.earned === 0 ||
+    (g.earned === null && ["unstarted", "unknown"].includes(g.status)));
+export function collectionStatus(g: Game) {
+  if (g.ignored) return "Ignored";
+  if (isWantToPlay(g)) return "Want to play";
+  const state = achievementStatus(g);
+  return state === "incomplete" ? "In progress" : statusLabels[state];
+}
+export function completionRule(
+  g: Game,
+  options: CompletionOptions = defaultCompletionOptions,
+): { included: boolean; reason: string; missing?: boolean } {
+  if (g.ignored) return { included: false, reason: "Excluded · ignored" };
+  if (isUnobtainable(g) && options.excludeUnobtainable)
+    return { included: false, reason: "Excluded · unobtainable" };
+  if (isWantToPlay(g) && !options.includeWantToPlay)
+    return { included: false, reason: "Excluded · Want to play toggle is off" };
+  if (!isWantToPlay(g) && achievementStatus(g) === "unstarted")
+    return { included: false, reason: "Excluded · not started" };
+  if (g.earned === null || g.total === null)
+    return {
+      included: false,
+      reason: "Excluded · achievement counts unknown",
+      missing: true,
+    };
+  if (g.total === 0)
+    return { included: false, reason: "Excluded · no available achievements" };
+  return {
+    included: true,
+    reason: isWantToPlay(g)
+      ? "Included · Want to play toggle is on"
+      : "Included in completion stats",
+  };
+}
 export function percentage(earned: number, total: number) {
   return total === 0 ? 0 : (earned / total) * 100;
 }
 export function matchesStatuses(game: Game, selected: string[]) {
-  return (
-    selected.length === 0 ||
-    selected.some((status) =>
-      status === "next"
-        ? game.lane === "Want to Play" && game.status === "unstarted"
-        : status === "incomplete"
-          ? ["started", "incomplete"].includes(game.status)
-          : game.status === status,
-    )
-  );
+  if (!selected.length) return true;
+  const progress = achievementStatus(game);
+  return selected.some((status) => {
+    if (status === "ignored") return game.ignored;
+    if (game.ignored) return false;
+    if (status === "unobtainable") return isUnobtainable(game);
+    if (status === "next") return isWantToPlay(game);
+    if (status === "unstarted")
+      return progress === "unstarted" && !isWantToPlay(game);
+    if (status === "started" || status === "incomplete")
+      return ["started", "incomplete"].includes(progress);
+    return progress === status;
+  });
 }
 export function required(earned: number, total: number, target: number) {
   if (!total) return null;
@@ -24,17 +76,16 @@ export function required(earned: number, total: number, target: number) {
     (BigInt(total) * t + denominator - 1n) / denominator - BigInt(earned);
   return Math.max(0, Number(needed));
 }
-export function stats(games: Game[]) {
-  const counted = games.filter(
-    (g) => g.included && g.earned !== null && g.total !== null,
-  );
+export function stats(
+  games: Game[],
+  options: CompletionOptions = defaultCompletionOptions,
+) {
+  const counted = games.filter((g) => completionRule(g, options).included);
   return {
     earned: counted.reduce((s, g) => s + g.earned!, 0),
     total: counted.reduce((s, g) => s + g.total!, 0),
     known: counted.length,
-    missing: games.filter(
-      (g) => g.included && (g.earned === null || g.total === null),
-    ).length,
+    missing: games.filter((g) => completionRule(g, options).missing).length,
   };
 }
 export type Allocation = { date: string; gameId: string; hours: number };
@@ -153,8 +204,7 @@ export function genreTags(g: Pick<Game, "genre" | "xctGenre">) {
 const platformKey = (platform: string) =>
   [
     ...new Set(
-      platform
-        .split(",")
+      platformTags(platform)
         .map(normalize)
         .filter(
           (p) => !["xbox cloud gaming", "xbox play anywhere"].includes(p),
@@ -188,6 +238,7 @@ export function importRows(rows: Record<string, string>[], map: Mapping) {
       "xctGenre",
     ] as const)
       if (val(key)) g[key] = val(key);
+    g.platform = platformTags(g.platform).join(", ");
     const state = val("status").toLowerCase();
     let bad = false;
     for (const key of ["earned", "total"] as const) {
@@ -287,6 +338,7 @@ export function mergeGames(
     if (index >= 0) {
       const prev = result[index];
       const next = { ...prev };
+      next.unobtainable = isUnobtainable(prev);
       // A collection row establishes ownership even when the export has no
       // Owned column. Achievement-only updates must not change ownership.
       if (!achievementsOnly) next.owned = game.owned;
@@ -392,6 +444,8 @@ export function deduplicate(
         total: previous.total ?? game.total,
         owned: previous.owned || game.owned,
         included: previous.included || game.included,
+        ignored: previous.ignored || game.ignored,
+        unobtainable: isUnobtainable(previous) || isUnobtainable(game),
         favorite: previous.favorite || game.favorite,
         tags: [...new Set([...previous.tags, ...game.tags])],
         notes: unique(previous.notes, game.notes),
@@ -470,12 +524,19 @@ export function alphabet(g: Game) {
   return /^[A-Z]$/.test(letter) ? letter : "#";
 }
 export function unfinished(g: Game) {
-  return g.owned && ["started", "incomplete", "unstarted"].includes(g.status);
+  return (
+    g.owned &&
+    !g.ignored &&
+    !isUnobtainable(g) &&
+    ["started", "incomplete", "unstarted"].includes(g.status)
+  );
 }
 export function huntCandidates(games: Game[]) {
   return games.filter(
     (g) =>
       g.owned &&
+      !g.ignored &&
+      !isUnobtainable(g) &&
       !["completed", "abandoned", "unobtainable"].includes(g.status) &&
       (g.status === "unstarted" || g.lane === "Want to Play"),
   );

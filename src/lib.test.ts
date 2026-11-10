@@ -25,10 +25,14 @@ describe("achievement calculations", () => {
     expect(required(801, 1000, 80.1)).toBe(0);
     expect(required(0, 0, 90)).toBeNull();
   });
-  it("excludes owned but uncounted and unknown games", () => {
+  it("excludes not-started games and reports unknown counts independently of legacy inclusion", () => {
     const a = { ...newGame("A"), earned: 5, total: 10, included: true };
     expect(
-      stats([a, newGame("B"), { ...newGame("C"), included: true }]),
+      stats([
+        a,
+        newGame("B"),
+        { ...newGame("C"), status: "unknown", included: false },
+      ]),
     ).toEqual({ earned: 5, total: 10, known: 1, missing: 1 });
   });
 });
