@@ -12,11 +12,12 @@ for (const path of (process.env.HAVENBOUND_CSV_FIXTURES || "")
     const parsed = importRows(csv.rows, map);
     expect(parsed.errors).toEqual([]);
     expect(parsed.games.length).toBe(csv.rows.length);
-    expect(
-      parsed.games.every(
-        (g) => g.earned === null && g.total === null && !g.included,
-      ),
-    ).toBe(true);
+    if (!map.earned && !map.total)
+      expect(
+        parsed.games.every(
+          (g) => g.earned === null && g.total === null && !g.included,
+        ),
+      ).toBe(true);
     const first = mergeGames([], parsed.games, map);
     const second = mergeGames(first.games, parsed.games, map);
     expect(second.added).toBe(0);

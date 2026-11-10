@@ -34,7 +34,14 @@ import {
   dayKey,
 } from "./model";
 import { load, save, download } from "./storage";
-import { allocate, identity, percentage, stats } from "./lib";
+import {
+  allocate,
+  identity,
+  percentage,
+  stats,
+  achievementStatus,
+} from "./lib";
+import VirtualLibrary from "./VirtualLibrary";
 import GameEditor from "./GameEditor";
 import Importer from "./Importer";
 import Calculator from "./Calculator";
@@ -42,6 +49,7 @@ import Calendar from "./Calendar";
 const navigation = [
   ["Overview", LayoutDashboard],
   ["Collection", Library],
+  ["Virtual library", Trees],
   ["My backlog", Layers],
   ["Calendar", CalendarDays],
   ["Completion lab", CalcIcon],
@@ -132,6 +140,7 @@ export default function App() {
   }
   function changeGame(g: Game) {
     if (!p) return;
+    g = { ...g, status: achievementStatus(g) };
     update({
       ...p,
       games: p.games.some((x) => x.id === g.id)
@@ -141,6 +150,18 @@ export default function App() {
   }
   function moveGame(id: string, lane: Game["lane"], before?: string) {
     if (!p) return;
+    const game = p.games.find((g) => g.id === id);
+    if (
+      lane === "Completed" &&
+      game &&
+      game.earned !== null &&
+      achievementStatus(game) !== "completed"
+    ) {
+      setError(
+        "This game has unfinished achievement progress. Update its counts before marking it completed.",
+      );
+      return;
+    }
     const order = [
       ...p.order,
       ...p.games.map((g) => g.id).filter((id) => !p.order.includes(id)),
@@ -156,16 +177,22 @@ export default function App() {
           ? {
               ...g,
               lane,
-              status:
-                lane === "Completed"
-                  ? "completed"
-                  : lane === "Currently Playing"
-                    ? "started"
-                    : g.status,
+              status: achievementStatus({
+                ...g,
+                status:
+                  lane === "Completed"
+                    ? "completed"
+                    : lane === "Currently Playing"
+                      ? "started"
+                      : g.status,
+              }),
               completedAt:
-                lane === "Completed"
+                lane === "Completed" &&
+                achievementStatus({ ...g, status: "completed" }) === "completed"
                   ? g.completedAt || dayKey()
-                  : g.completedAt,
+                  : g.status === "completed"
+                    ? g.completedAt
+                    : "",
             }
           : g,
       ),
@@ -192,7 +219,10 @@ export default function App() {
       (g) =>
         (!owned || g.owned) &&
         g.name.toLowerCase().includes(query.toLowerCase()) &&
-        (filter === "all" || g.status === filter) &&
+        (filter === "all" ||
+          (filter === "next"
+            ? g.lane === "Want to Play" && g.status === "unstarted"
+            : g.status === filter)) &&
         (platform === "all" || g.platform === platform) &&
         (!tag ||
           g.tags.some((t) => t.toLowerCase().includes(tag.toLowerCase()))) &&
@@ -335,6 +365,7 @@ export default function App() {
                   ? "Your collection. Your journey. Your next completion."
                   : (
                       {
+                        'Virtual library': 'Your collection on the shelves. Your next hunt within reach.',
                         Collection:
                           "Every game has a place. Find your next adventure.",
                         "My backlog":
@@ -610,6 +641,14 @@ export default function App() {
               </div>
             </>
           )}
+          {page === "Virtual library" && (
+            <VirtualLibrary
+              key={p.id}
+              games={p.games}
+              onEdit={setEdit}
+              onPlan={(id) => moveGame(id, "Want to Play")}
+            />
+          )}
           {page === "Collection" && (
             <>
               <div className="toolbar">
@@ -631,6 +670,7 @@ export default function App() {
                   onChange={(e) => setFilter(e.target.value)}
                 >
                   <option value="all">All statuses</option>
+                  <option value="next">Want to Play · not started</option>
                   {statuses.map((s) => (
                     <option key={s}>{s}</option>
                   ))}

@@ -2,6 +2,7 @@ import { z } from "zod";
 const hours = z.number().finite().min(0).max(100000);
 const count = z.number().int().min(0).max(10000000);
 export const statuses = [
+  "unknown",
   "unstarted",
   "started",
   "incomplete",
@@ -22,6 +23,7 @@ export const gameSchema = z
     name: z.string().min(1),
     platform: z.string(),
     edition: z.string(),
+    genre: z.string().default(""),
     status: z.enum(statuses),
     owned: z.boolean(),
     included: z.boolean(),
@@ -91,6 +93,7 @@ export function newGame(name = ""): Game {
     name,
     platform: "Xbox Series X|S",
     edition: "Standard",
+    genre: "",
     status: "unstarted",
     owned: true,
     included: false,

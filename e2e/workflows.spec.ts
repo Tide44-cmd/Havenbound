@@ -1,4 +1,68 @@
 import { test, expect } from "@playwright/test";
+test("new XCT achievement export powers shelves and Ledger-inspired picks", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Import collection", exact: true })
+    .click();
+  await page
+    .getByLabel("CSV export")
+    .setInputFiles({
+      name: "new-xct.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(
+        "Title,Source,Gamertag,Status,Achievements Earned,Achievements Total,Genre\nAlpha,Both,Example,Fulfilled,0,33,Puzzle\nBravo,Both,Example,Active,1,33,Adventure\nComplete,Both,Example,,33,33,Puzzle\nUnknown,Both,Example,,,,Puzzle",
+      ),
+    });
+  await page.getByRole("button", { name: "Confirm import" }).click();
+  await expect(page.getByRole("status")).toContainText("Import saved");
+  await page
+    .getByRole("button", { name: "Virtual library", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Puzzle", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "A–Z challenge", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Open Alpha", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "My next 10", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Pick my next 10", exact: true })
+    .click();
+  await expect(page.locator(".library-book")).toHaveCount(2);
+  await page
+    .getByRole("button", { name: "Give me a hunt", exact: true })
+    .first()
+    .click();
+  await page
+    .getByRole("button", { name: "Give me a hunt", exact: true })
+    .last()
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Open Alpha", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Want to Play next", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "On your Want to Play list" }),
+  ).toBeVisible();
+  await page.reload();
+  await page
+    .getByRole("combobox", { name: "Library progress" })
+    .selectOption("next");
+  await expect(page.locator(".library-book")).toHaveCount(1);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
 test("import, plan, calculate, persist and isolate profiles", async ({
   page,
 }) => {

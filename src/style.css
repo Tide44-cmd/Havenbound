@@ -1446,3 +1446,77 @@ td {
     scroll-behavior: auto !important;
   }
 }
+.library-shelf {
+  margin-bottom: 32px;
+  padding: 0 0 20px;
+  border-bottom: 12px solid #453d2b;
+  box-shadow: 0 8px 12px #0005;
+  border-radius: 0 0 6px 6px;
+}
+.library-shelf > h2 {
+  color: #ccbd94;
+  margin: 0 0 20px;
+  font-size: 17px;
+}
+.library-books {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 20px;
+}
+.library-book {
+  border: 1px solid #45513c;
+  border-radius: 5px 10px 6px 5px;
+  overflow: hidden;
+  background: #1e2920;
+  box-shadow: -5px 4px 0 #0d160f;
+}
+.library-book .cover {
+  height: 225px;
+  border-left: 7px solid #ffffff0c;
+}
+.library-book .game-info > button:last-child {
+  width: 100%;
+  font-size: 11px;
+}
+.library-progress {
+  font-size: 11px;
+  color: #c6b988;
+}
+.library-progress span {
+  display: block;
+  color: #a9b7a0;
+  margin-top: 4px;
+}
+.alphabet {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+.alphabet button {
+  flex-direction: column;
+  min-width: 43px;
+  gap: 3px;
+}
+.alphabet button.primary small {
+  color: #334128;
+}
+.library-controls .toolbar {
+  margin-top: 20px;
+  align-items: center;
+}
+.library-controls .toolbar input {
+  flex: 1;
+}
+@media (max-width: 480px) {
+  .library-books {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 13px;
+  }
+  .library-book .cover {
+    height: 180px;
+  }
+  .library-book .game-info {
+    padding: 10px;
+  }
+}

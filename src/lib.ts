@@ -76,6 +76,7 @@ export const fields = [
   "productId",
   "platform",
   "edition",
+  "genre",
   "status",
   "earned",
   "total",
@@ -90,16 +91,22 @@ const aliases: Record<string, string[]> = {
   productId: ["productid", "xboxproductid", "id"],
   platform: ["platform", "platforms"],
   edition: ["edition", "stack"],
+  genre: ["genre", "xctgenre"],
   status: ["status", "completionstatus"],
   earned: ["earned", "achievementsearned", "unlockedachievements"],
-  total: ["total", "totalachievements", "achievementsavailable"],
+  total: [
+    "total",
+    "totalachievements",
+    "achievementstotal",
+    "achievementsavailable",
+  ],
   owned: ["owned"],
   included: ["included", "includeinstats"],
   coop: ["coop", "cooperative"],
   cover: ["cover", "coverurl", "imageurl"],
 };
 export function guessMapping(headers: string[]): Mapping {
-  const xct = headers.includes("Gamertag") && headers.includes("Product ID");
+  const xct = headers.includes("Gamertag") && headers.includes("Source");
   return Object.fromEntries(
     fields.map((f) => [
       f,
@@ -127,7 +134,14 @@ export function importRows(rows: Record<string, string>[], map: Mapping) {
     }
     const g = newGame(val("name"));
     g.source = "csv";
-    for (const key of ["productId", "platform", "edition", "cover"] as const)
+    g.status = "unknown";
+    for (const key of [
+      "productId",
+      "platform",
+      "edition",
+      "cover",
+      "genre",
+    ] as const)
       if (val(key)) g[key] = val(key);
     const state = val("status").toLowerCase();
     if (state && !statuses.includes(state as Game["status"])) {
@@ -159,6 +173,7 @@ export function importRows(rows: Record<string, string>[], map: Mapping) {
     }
     if (!map.included && g.total !== null && g.earned !== null)
       g.included = true;
+    g.status = achievementStatus(g);
     if (!bad) games.push(g);
   }
   return { games, errors };
@@ -168,11 +183,22 @@ export function mergeGames(
   incoming: Game[],
   map: Mapping,
   achievementsOnly = false,
+  matchUniqueTitles = false,
 ) {
   const result = [...existing];
   const byIdentity = new Map(result.map((g, i) => [identity(g), i]));
   const titleKey = (g: Game) => identity({ ...g, productId: "" });
   const byTitle = new Map<string, number[]>();
+  const looseKey = (g: Game) => `${normalize(g.name)}|${normalize(g.edition)}`;
+  const loose = new Map<string, number[]>();
+  result.forEach((g, i) =>
+    loose.set(looseKey(g), [...(loose.get(looseKey(g)) || []), i]),
+  );
+  const incomingNames = new Map<string, number>();
+  incoming.forEach((g) =>
+    incomingNames.set(looseKey(g), (incomingNames.get(looseKey(g)) || 0) + 1),
+  );
+  const conflicts: string[] = [];
   result.forEach((g, i) =>
     byTitle.set(titleKey(g), [...(byTitle.get(titleKey(g)) || []), i]),
   );
@@ -185,6 +211,23 @@ export function mergeGames(
         (byTitle.get(titleKey(game)) || []).find(
           (i) => !result[i].productId || !game.productId,
         ) ?? -1;
+    if (index < 0 && matchUniqueTitles) {
+      const candidates = loose.get(looseKey(game)) || [];
+      if (candidates.length) {
+        if (
+          candidates.length === 1 &&
+          incomingNames.get(looseKey(game)) === 1 &&
+          (!game.productId || !result[candidates[0]].productId)
+        )
+          index = candidates[0];
+        else {
+          conflicts.push(
+            `Ambiguous title: ${game.name}. Map platform/edition explicitly.`,
+          );
+          continue;
+        }
+      }
+    }
     if (index >= 0) {
       const prev = result[index];
       const next = { ...prev };
@@ -196,12 +239,15 @@ export function mergeGames(
           continue;
         if (
           map[key] &&
+          (key !== "productId" || !!game.productId) &&
           (!(key === "earned" || key === "total") || game[key] !== null)
         )
           Object.assign(next, { [key]: game[key] });
       }
       if (!map.included && game.total !== null && game.earned !== null)
         next.included = true;
+      next.status = achievementStatus(next);
+      if (next.status !== "completed") next.completedAt = "";
       result[index] = next;
       byIdentity.delete(identity(prev));
       byIdentity.set(identity(next), index);
@@ -216,5 +262,44 @@ export function mergeGames(
       added++;
     }
   }
-  return { games: result, added, updated };
+  return { games: result, added, updated, conflicts };
+}
+
+// Planning intent never overrides known achievement progress. 0/0 is not a completion.
+export function achievementStatus(
+  g: Pick<Game, "earned" | "total" | "status">,
+): Game["status"] {
+  if (g.earned === null) return g.status;
+  if (g.earned === 0) return "unstarted";
+  if (g.total !== null && g.total > 0 && g.earned === g.total)
+    return "completed";
+  return "started";
+}
+export function alphabet(g: Game) {
+  const letter = g.name
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .charAt(0)
+    .toUpperCase();
+  return /^[A-Z]$/.test(letter) ? letter : "#";
+}
+export function unfinished(g: Game) {
+  return g.owned && ["started", "incomplete", "unstarted"].includes(g.status);
+}
+export function huntCandidates(games: Game[]) {
+  return games.filter(
+    (g) =>
+      g.owned &&
+      !["completed", "abandoned", "unobtainable"].includes(g.status) &&
+      (g.status === "unstarted" || g.lane === "Want to Play"),
+  );
+}
+export function randomGames(games: Game[], count: number, rng = Math.random) {
+  const pool = [...games];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, Math.max(0, count));
 }

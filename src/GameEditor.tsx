@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Game, gameSchema, statuses, lanes, dayKey } from "./model";
+import { achievementStatus } from "./lib";
 export default function GameEditor({
   game,
   onSave,
@@ -70,16 +71,31 @@ export default function GameEditor({
               setError(result.error.issues[0].message);
               return;
             }
+            const status = achievementStatus(result.data);
+            if (g.lane === "Completed" && status !== "completed") {
+              setError(
+                "Achievement counts are unfinished. Choose another backlog list or update the counts.",
+              );
+              return;
+            }
             onSave({
               ...result.data,
+              status,
               completedAt:
-                g.status === "completed" ? g.completedAt || dayKey() : "",
+                status === "completed" ? g.completedAt || dayKey() : "",
             });
           }}
         >
           <div className="form-grid">
             {(
-              ["name", "productId", "platform", "edition", "cover"] as const
+              [
+                "name",
+                "productId",
+                "platform",
+                "edition",
+                "genre",
+                "cover",
+              ] as const
             ).map((k) => (
               <label key={k}>
                 {
@@ -88,6 +104,7 @@ export default function GameEditor({
                     productId: "Xbox Product ID",
                     platform: "Platform / stack",
                     edition: "Edition",
+                    genre: "Genre",
                     cover: "Cover image URL (optional)",
                   }[k]
                 }
@@ -102,13 +119,20 @@ export default function GameEditor({
             <label>
               Status
               <select
-                value={g.status}
+                value={achievementStatus(g)}
+                disabled={g.earned !== null}
                 onChange={(e) => update("status", e.target.value)}
               >
                 {statuses.map((s) => (
                   <option key={s}>{s}</option>
                 ))}
               </select>
+              {g.earned !== null && (
+                <small>
+                  Calculated from achievement counts. Backlog lists track what
+                  you want to play separately.
+                </small>
+              )}
             </label>
             <label>
               Backlog list

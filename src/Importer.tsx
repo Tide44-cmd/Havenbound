@@ -20,13 +20,15 @@ export default function Importer({
   const [mode, setMode] = useState("merge");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [matchTitles, setMatchTitles] = useState(false);
   const parsed = csv ? importRows(csv.rows, map) : null;
   const preview = parsed
     ? mergeGames(
-        mode === "replace" ? [] : games,
+        mode === "replace" ? games.map((g) => ({ ...g, owned: false })) : games,
         parsed.games,
-        map,
+        mode === "replace" ? { ...map, owned: map.owned || "__owned" } : map,
         mode === "achievements",
+        matchTitles,
       )
     : null;
   return (
@@ -65,8 +67,20 @@ export default function Importer({
             {csv.rows.length.toLocaleString()} rows found. XCT purchase status
             is deliberately unmapped. Platform and edition default to Xbox
             Series X|S / Standard when absent; change them for known stacks.
-            Ownership does not establish achievement progress.
+            Ownership does not establish achievement progress. Known counts
+            determine progress: 0 = not started, some = started, all =
+            completed. Blank counts stay unknown. Genre is imported separately.
           </p>
+          <label className="checks">
+            <input
+              type="checkbox"
+              checked={matchTitles}
+              onChange={(e) => setMatchTitles(e.target.checked)}
+            />
+            Match unique titles across changed platform labels (for upgrading
+            older exports without matching Product IDs). Preserves IDs and
+            plans; ambiguous titles are blocked.
+          </label>
           <label>
             Import mode
             <select value={mode} onChange={(e) => setMode(e.target.value)}>
@@ -102,7 +116,10 @@ export default function Importer({
             <>
               <p>
                 {preview.added} new · {preview.updated} matched ·{" "}
-                {parsed.errors.length + csv.errors.length} errors
+                {parsed.errors.length +
+                  csv.errors.length +
+                  preview.conflicts.length}{" "}
+                errors
               </p>
               {mode === "achievements" && (
                 <p className="muted">
@@ -132,11 +149,13 @@ export default function Importer({
                   </tbody>
                 </table>
               </div>
-              {[...csv.errors, ...parsed.errors].slice(0, 10).map((err, i) => (
-                <p className="error" key={i}>
-                  {err}
-                </p>
-              ))}
+              {[...csv.errors, ...parsed.errors, ...preview.conflicts]
+                .slice(0, 10)
+                .map((err, i) => (
+                  <p className="error" key={i}>
+                    {err}
+                  </p>
+                ))}
               <button
                 className="primary"
                 disabled={
@@ -144,16 +163,11 @@ export default function Importer({
                   !parsed.games.length ||
                   !!parsed.errors.length ||
                   !!csv.errors.length ||
+                  !!preview.conflicts.length ||
                   (mode === "achievements" && (!map.earned || !map.total))
                 }
                 onClick={() => {
-                  let next = preview.games;
-                  if (mode === "replace")
-                    next = mergeGames(
-                      games.map((g) => ({ ...g, owned: false })),
-                      parsed.games,
-                      { ...map, owned: map.owned || "__owned" },
-                    ).games;
+                  const next = preview.games;
                   const valid = gameSchema.array().safeParse(next);
                   if (!valid.success) {
                     setError(
