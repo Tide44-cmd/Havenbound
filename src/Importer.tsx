@@ -116,7 +116,11 @@ export default function Importer({
                   value={map[f] || ""}
                   onChange={(e) => setMap({ ...map, [f]: e.target.value })}
                 >
-                  <option value="">Not provided</option>
+                  <option value="">
+                    {f === "status"
+                      ? "Automatic from achievement counts"
+                      : "Not provided"}
+                  </option>
                   {csv.headers.map((h) => (
                     <option key={h}>{h}</option>
                   ))}
@@ -183,6 +187,7 @@ export default function Importer({
                       <th>Game</th>
                       <th>Platform</th>
                       <th>Earned / total</th>
+                      <th>Automatic status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -192,6 +197,15 @@ export default function Importer({
                         <td>{g.platform}</td>
                         <td>
                           {g.earned ?? "?"} / {g.total ?? "?"}
+                        </td>
+                        <td>
+                          {g.status === "unstarted"
+                            ? "Not started"
+                            : g.status === "started"
+                              ? "Started"
+                              : g.status === "completed"
+                                ? "Completed"
+                                : g.status}
                         </td>
                       </tr>
                     ))}

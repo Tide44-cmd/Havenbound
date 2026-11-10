@@ -70,6 +70,8 @@ Open **Virtual library** to browse genre shelves with title search, genre/progre
 
 Collection and library cards show earned/total counts, a completion percentage rounded to one decimal, and an accessible progress bar. Missing counts and zero-total games show no misleading percentage. Cards tilt and glow slightly on pointer hover; a slow woodland-light background adds subtle movement. Reduced-motion preferences disable the tilt and background animation, and touch devices do not receive hover motion.
 
+Card controls are anchored at the bottom of each row, independent of title and tag lengths. The ambient background includes forest silhouettes, drifting mist and soft fireflies; the pause/resume button in the header remembers your preference. System reduced-motion settings always disable animation. Import preview shows each game's calculated status before confirmation. Achievement columns default to automatic status mapping even without XCT-specific metadata; `Status` purchase text cannot override known counts. Backlog lists remain separate planning choices.
+
 - **A–Z challenge** lists owned started/incomplete and unstarted games by initial letter, with counts for each letter. Accents are normalized, “The” stays under T, and numbers/symbols use #. Unknown progress is excluded.
 - **My next 10** picks up to ten distinct random unfinished games, or fewer if the eligible collection is smaller.
 - **Give me a hunt** chooses one unstarted or Want to Play game; completed, abandoned, unobtainable and unowned games are excluded. Explicit Want to Play intent can make a game with unknown counts eligible.

@@ -729,6 +729,8 @@ footer span {
   gap: 20px;
 }
 .game-card {
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--line);
   border-radius: 9px;
   overflow: hidden;
@@ -743,6 +745,34 @@ footer span {
 }
 .game-info {
   padding: 14px;
+}
+.game-card > .game-info,
+.library-book > .game-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.game-card > .cover-button,
+.library-book > .cover-button {
+  flex-shrink: 0;
+}
+.card-actions {
+  margin-top: auto;
+  padding-top: 4px;
+}
+.card-actions .source {
+  min-height: 2.8em;
+  line-height: 1.4;
+}
+.library-book {
+  display: flex;
+  flex-direction: column;
+}
+.library-action {
+  margin-top: auto;
+  min-height: 44px;
+  line-height: 1.4;
 }
 .game-info .section-head {
   margin-bottom: 5px;
@@ -1576,14 +1606,85 @@ td {
 .app::before {
   content: "";
   position: fixed;
-  inset: -15%;
+  inset: 0;
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 65% 20%, #71845115, transparent 50%),
-    radial-gradient(ellipse at 25% 75%, #a38c4310, transparent 45%);
+    radial-gradient(ellipse at 75% 10%, #71845140, transparent 60%),
+    radial-gradient(ellipse at 30% 85%, #a38c4320, transparent 55%);
   animation: woodland-drift 28s ease-in-out infinite alternate;
   will-change: transform;
+}
+.ambient-background {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.ambient-forest {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 48vh;
+  min-height: 260px;
+  opacity: 0.65;
+}
+.ambient-mist {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 72% 70%, #85966b26, transparent 55%),
+    radial-gradient(ellipse at 20% 50%, #586c4b1a, transparent 50%);
+  animation: woodland-drift 32s ease-in-out infinite alternate;
+}
+.ambient-firefly {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #d3c487;
+  box-shadow: 0 0 10px 3px #c5b67640;
+  animation: firefly-drift 24s ease-in-out infinite;
+  opacity: 0.35;
+}
+@keyframes firefly-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.12;
+  }
+  45% {
+    transform: translate3d(15px, -35px, 0);
+    opacity: 0.55;
+  }
+  75% {
+    transform: translate3d(-8px, -18px, 0);
+    opacity: 0.18;
+  }
+}
+.app[data-motion="off"]::before,
+.app[data-motion="off"] .ambient-mist,
+.app[data-motion="off"] .ambient-firefly {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ambient-mist,
+  .ambient-firefly {
+    animation: none !important;
+  }
+}
+@media (max-width: 480px) {
+  .topbar .inline {
+    gap: 6px;
+  }
+  .topbar .ambient-toggle {
+    padding: 5px;
+  }
+  .ambient-forest {
+    opacity: 0.4;
+  }
 }
 @keyframes woodland-drift {
   from {

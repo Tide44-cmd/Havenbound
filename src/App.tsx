@@ -20,6 +20,8 @@ import {
   Compass,
   Download,
   ShieldCheck,
+  Pause,
+  Play,
 } from "lucide-react";
 import {
   AppData,
@@ -48,6 +50,7 @@ import GameEditor from "./GameEditor";
 import Importer from "./Importer";
 import Calculator from "./Calculator";
 import Calendar from "./Calendar";
+import AmbientBackground from "./AmbientBackground";
 const navigation = [
   ["Overview", LayoutDashboard],
   ["Collection", Library],
@@ -264,7 +267,11 @@ export default function App() {
       })
     : [];
   return (
-    <div className={"app " + (collapsed ? "collapsed" : "")}>
+    <div
+      className={"app " + (collapsed ? "collapsed" : "")}
+      data-motion={data.ambientMotion ? "on" : "off"}
+    >
+      <AmbientBackground />
       <aside className="sidebar">
         <a href="#Overview" className="brand">
           <span className="brand-icon">
@@ -347,6 +354,24 @@ export default function App() {
             </span>
             <button onClick={() => navigate("Import & settings")}>
               <Upload size={15} /> Import collection
+            </button>
+            <button
+              className="icon-button ambient-toggle"
+              aria-label={
+                data.ambientMotion
+                  ? "Pause background animation"
+                  : "Resume background animation"
+              }
+              title={
+                data.ambientMotion
+                  ? "Pause background animation"
+                  : "Resume background animation"
+              }
+              onClick={() =>
+                persist({ ...data, ambientMotion: !data.ambientMotion })
+              }
+            >
+              {data.ambientMotion ? <Pause size={16} /> : <Play size={16} />}
             </button>
             <span className="avatar small">
               {p.name.slice(0, 1).toUpperCase()}
@@ -782,27 +807,29 @@ export default function App() {
                         </div>
                         <GameProgress game={g} />
                         <GenreBadges game={g} />
-                        <select
-                          aria-label={"Backlog list for " + g.name}
-                          value={g.lane || ""}
-                          onChange={(e) =>
-                            moveGame(
-                              g.id,
-                              (e.target.value || null) as Game["lane"],
-                            )
-                          }
-                        >
-                          <option value="">Add to a plan…</option>
-                          {lanes.map((l) => (
-                            <option key={l}>{l}</option>
-                          ))}
-                        </select>
-                        <small className="source">
-                          {g.source === "csv"
-                            ? "Imported collection data"
-                            : "Manually entered"}
-                          {g.included ? " · Included in stats" : ""}
-                        </small>
+                        <div className="card-actions">
+                          <select
+                            aria-label={"Backlog list for " + g.name}
+                            value={g.lane || ""}
+                            onChange={(e) =>
+                              moveGame(
+                                g.id,
+                                (e.target.value || null) as Game["lane"],
+                              )
+                            }
+                          >
+                            <option value="">Add to a plan…</option>
+                            {lanes.map((l) => (
+                              <option key={l}>{l}</option>
+                            ))}
+                          </select>
+                          <small className="source">
+                            {g.source === "csv"
+                              ? "Imported collection data"
+                              : "Manually entered"}
+                            {g.included ? " · Included in stats" : ""}
+                          </small>
+                        </div>
                       </div>
                     </article>
                   ))}

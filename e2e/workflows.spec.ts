@@ -1,4 +1,94 @@
 import { test, expect } from "@playwright/test";
+test("aligned card controls, automatic status preview, and pausable woodland background", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Import collection", exact: true })
+    .click();
+  await page
+    .getByLabel("CSV export")
+    .setInputFiles({
+      name: "layout.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(
+        'Title,Status,Achievements Earned,Achievements Total,Achv,Genre\nA Short,Active,0,33,33,Adventure\nB A much longer game title that wraps across several lines,Fulfilled,1,33,33,"Adventure, Horror, Action Horror, Puzzle"\nC Complete,Active,33,33,33,Adventure\nD Not played yet,Fulfilled,,,33,Adventure',
+      ),
+    });
+  await expect(
+    page.getByRole("row").filter({ hasText: "A Short" }),
+  ).toContainText("Not started");
+  await expect(
+    page.getByRole("row").filter({ hasText: "B A much longer" }),
+  ).toContainText("Started");
+  await expect(
+    page.getByRole("row").filter({ hasText: "C Complete" }),
+  ).toContainText("Completed");
+  await expect(
+    page.getByRole("row").filter({ hasText: "D Not played" }),
+  ).toContainText("Not started");
+  await page.getByRole("button", { name: "Confirm import" }).click();
+  await page.getByRole("button", { name: "Collection", exact: true }).click();
+  await page.mouse.move(0, 0);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  async function aligned(cards: string, control: string) {
+    const positions = await page
+      .locator(cards)
+      .evaluateAll(
+        (nodes, selector) =>
+          nodes.map((n) => ({
+            row: Math.round(n.getBoundingClientRect().top),
+            y: n.querySelector(selector)!.getBoundingClientRect().top,
+          })),
+        control,
+      );
+    for (const row of new Set(positions.map((p) => p.row))) {
+      const values = positions.filter((p) => p.row === row).map((p) => p.y);
+      expect(Math.max(...values) - Math.min(...values)).toBeLessThan(2);
+    }
+  }
+  await aligned(".game-card", ".card-actions select");
+  await expect(page.locator(".ambient-forest")).toBeVisible();
+  expect(
+    await page
+      .locator(".ambient-firefly")
+      .first()
+      .evaluate((el) => getComputedStyle(el).animationName),
+  ).toBe("none");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page
+    .getByRole("button", { name: "Pause background animation" })
+    .click();
+  expect(
+    await page
+      .locator(".ambient-firefly")
+      .first()
+      .evaluate((el) => getComputedStyle(el).animationPlayState),
+  ).toBe("paused");
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Resume background animation" }),
+  ).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  if (process.env.HAVENBOUND_SCREENSHOTS)
+    await page.screenshot({
+      path: process.env.HAVENBOUND_SCREENSHOTS + "/aligned-cards.png",
+      fullPage: true,
+    });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await aligned(".game-card", ".card-actions select");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page
+    .getByRole("button", { name: "Virtual library", exact: true })
+    .click();
+  await aligned(".library-book", ".library-action");
+});
 test("clearing and reimporting the same file restores the collection", async ({
   page,
 }) => {

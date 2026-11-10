@@ -74,6 +74,7 @@ export const backupSchema = z
     version: z.literal(1),
     active: z.string(),
     precision: z.number().int().min(1).max(4),
+    ambientMotion: z.boolean().default(true),
     profiles: z.array(profileSchema).min(1),
   })
   .superRefine((s, ctx) => {
@@ -132,7 +133,13 @@ export function newProfile(name: string): Profile {
 }
 export function initialData(): AppData {
   const p = newProfile("My haven");
-  return { version: 1, active: p.id, precision: 2, profiles: [p] };
+  return {
+    version: 1,
+    active: p.id,
+    precision: 2,
+    ambientMotion: true,
+    profiles: [p],
+  };
 }
 export const dayKey = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;

@@ -114,10 +114,13 @@ export function guessMapping(headers: string[]): Mapping {
     h.toLowerCase().replace(/[^a-z0-9]/g, ""),
   );
   const xct = normalized.includes("gamertag") && normalized.includes("source");
+  const hasAchievementData = normalized.some(
+    (h) => aliases.earned.includes(h) || aliases.totalFallback.includes(h),
+  );
   return Object.fromEntries(
     fields.map((f) => [
       f,
-      xct && f === "status"
+      (xct || hasAchievementData) && f === "status"
         ? ""
         : headers.find((h) =>
             aliases[f].includes(h.toLowerCase().replace(/[^a-z0-9]/g, "")),
@@ -174,11 +177,6 @@ export function importRows(rows: Record<string, string>[], map: Mapping) {
     ] as const)
       if (val(key)) g[key] = val(key);
     const state = val("status").toLowerCase();
-    if (state && !statuses.includes(state as Game["status"])) {
-      errors.push(`Row ${i + 2}: unknown status "${state}"`);
-      continue;
-    }
-    if (state) g.status = state as Game["status"];
     let bad = false;
     for (const key of ["earned", "total"] as const) {
       const raw = val(key) || (key === "total" ? val("totalFallback") : "");
@@ -193,6 +191,13 @@ export function importRows(rows: Record<string, string>[], map: Mapping) {
     const inferredZero =
       !!map.totalFallback && !val("earned") && g.total !== null;
     if (inferredZero) g.earned = 0;
+    // Counts are authoritative; purchase-status text must never override them.
+    if (g.earned === null && state) {
+      if (!statuses.includes(state as Game["status"])) {
+        errors.push(`Row ${i + 2}: unknown status "${state}"`);
+        bad = true;
+      } else g.status = state as Game["status"];
+    }
     for (const key of ["owned", "included", "coop"] as const) {
       if (val(key)) {
         if (!/^(true|false|yes|no|1|0)$/i.test(val(key))) {

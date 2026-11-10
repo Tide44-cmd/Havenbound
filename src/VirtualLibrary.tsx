@@ -240,6 +240,7 @@ export default function VirtualLibrary({
                   <GameProgress game={g} />
                   <GenreBadges game={g} />
                   <button
+                    className="library-action"
                     disabled={
                       g.lane === "Want to Play" || g.status === "completed"
                     }
