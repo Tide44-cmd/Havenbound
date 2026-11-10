@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Game, gameSchema, statuses, lanes, dayKey } from "./model";
+import {
+  Game,
+  gameSchema,
+  statuses,
+  statusLabels,
+  lanes,
+  dayKey,
+} from "./model";
 import { achievementStatus } from "./lib";
 export default function GameEditor({
   game,
@@ -126,7 +133,9 @@ export default function GameEditor({
                 onChange={(e) => update("status", e.target.value)}
               >
                 {statuses.map((s) => (
-                  <option key={s}>{s}</option>
+                  <option key={s} value={s}>
+                    {statusLabels[s]}
+                  </option>
                 ))}
               </select>
               {g.earned !== null && (

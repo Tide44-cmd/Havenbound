@@ -30,7 +30,7 @@ import {
   backupSchema,
   newGame,
   newProfile,
-  statuses,
+  statusLabels,
   lanes,
   snapshot,
   dayKey,
@@ -43,6 +43,7 @@ import {
   stats,
   achievementStatus,
   remapPlans,
+  matchesStatuses,
 } from "./lib";
 import { GameProgress, GenreBadges } from "./GameProgress";
 import VirtualLibrary from "./VirtualLibrary";
@@ -51,6 +52,7 @@ import Importer from "./Importer";
 import Calculator from "./Calculator";
 import Calendar from "./Calendar";
 import AmbientBackground from "./AmbientBackground";
+import StatusFilter from "./StatusFilter";
 const navigation = [
   ["Overview", LayoutDashboard],
   ["Collection", Library],
@@ -92,7 +94,7 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(false);
   const [edit, setEdit] = useState<Game | null>(null);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [filters, setFilters] = useState<string[]>([]);
   const [platform, setPlatform] = useState("all");
   const [tag, setTag] = useState("");
   const [sort, setSort] = useState("name");
@@ -224,10 +226,7 @@ export default function App() {
       (g) =>
         (!owned || g.owned) &&
         g.name.toLowerCase().includes(query.toLowerCase()) &&
-        (filter === "all" ||
-          (filter === "next"
-            ? g.lane === "Want to Play" && g.status === "unstarted"
-            : g.status === filter)) &&
+        matchesStatuses(g, filters) &&
         (platform === "all" || g.platform === platform) &&
         (!tag ||
           g.tags.some((t) => t.toLowerCase().includes(tag.toLowerCase()))) &&
@@ -271,7 +270,7 @@ export default function App() {
       className={"app " + (collapsed ? "collapsed" : "")}
       data-motion={data.ambientMotion ? "on" : "off"}
     >
-      <AmbientBackground />
+      <AmbientBackground motion={data.ambientMotion} />
       <aside className="sidebar">
         <a href="#Overview" className="brand">
           <span className="brand-icon">
@@ -475,7 +474,7 @@ export default function App() {
                   [
                     "Games owned",
                     p.games.filter((g) => g.owned).length,
-                    `${p.games.filter((g) => g.owned && g.status === "unstarted").length} marked unstarted`,
+                    `${p.games.filter((g) => g.owned && g.status === "unstarted").length} not started`,
                     Library,
                   ],
                   [
@@ -692,17 +691,13 @@ export default function App() {
                     }}
                   />
                 </label>
-                <select
-                  aria-label="Filter status"
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                >
-                  <option value="all">All statuses</option>
-                  <option value="next">Want to Play · not started</option>
-                  {statuses.map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </select>
+                <StatusFilter
+                  selected={filters}
+                  onChange={(value) => {
+                    setFilters(value);
+                    setLimit(48);
+                  }}
+                />
                 <select
                   aria-label="Filter platform"
                   value={platform}
@@ -779,7 +774,9 @@ export default function App() {
                       </button>
                       <div className="game-info">
                         <div className="section-head">
-                          <span className="status">{g.status}</span>
+                          <span className="status">
+                            {statusLabels[g.status]}
+                          </span>
                           <button
                             className={"star " + (g.favorite ? "selected" : "")}
                             aria-label={
@@ -1059,11 +1056,13 @@ export default function App() {
                         </small>
                       </span>
                       <span>
-                        {g.status} /{" "}
+                        {statusLabels[g.status]} /{" "}
                         {
-                          friendProfile.games.find(
-                            (o) => identity(o) === identity(g),
-                          )?.status
+                          statusLabels[
+                            friendProfile.games.find(
+                              (o) => identity(o) === identity(g),
+                            )?.status || "unknown"
+                          ]
                         }
                       </span>
                     </div>

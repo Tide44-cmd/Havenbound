@@ -102,3 +102,7 @@ Vite uses relative asset URLs and navigation uses hashes (`/#Collection`), so pr
 For browser workflow checks, run `npx playwright install chromium` once, then `npm run test:e2e`. To use an existing Chromium installation, set `HAVENBOUND_CHROMIUM` to its executable. The tests cover importing, editing, achievement scenarios, calendar persistence, independent profiles, mobile layout and backlog completion. Optional real CSV validation reads semicolon-separated paths from `HAVENBOUND_CSV_FIXTURES`; it never copies those files into the repo.
 
 This MVP is deliberately local: no live Xbox data, automatic achievement sync, social messaging, server accounts or Discord connection. The calendar is an estimate, not a deadline.
+
+Collection status filters support multiple selections: a game appears if it matches any selected status. Incomplete includes games in progress; selecting no statuses shows everything. Readable labels such as Not started and In progress retain the existing saved status values.
+
+The woodland scene fills the viewport with two drifting mist layers and 36 fireflies (18 on touch devices). Gentle mouse parallax updates at most once per animation frame when the pointer moves. Pause disables motion and pointer tracking; reduced-motion preferences and touch devices disable parallax.

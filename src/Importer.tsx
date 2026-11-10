@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Game, gameSchema } from "./model";
+import { Game, gameSchema, statusLabels } from "./model";
 import {
   fields,
   guessMapping,
@@ -198,15 +198,7 @@ export default function Importer({
                         <td>
                           {g.earned ?? "?"} / {g.total ?? "?"}
                         </td>
-                        <td>
-                          {g.status === "unstarted"
-                            ? "Not started"
-                            : g.status === "started"
-                              ? "Started"
-                              : g.status === "completed"
-                                ? "Completed"
-                                : g.status}
-                        </td>
+                        <td>{statusLabels[g.status]}</td>
                       </tr>
                     ))}
                   </tbody>

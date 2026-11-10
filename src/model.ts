@@ -16,6 +16,15 @@ export const lanes = [
   "Want to Complete",
   "Completed",
 ] as const;
+export const statusLabels: Record<(typeof statuses)[number], string> = {
+  unknown: "Unknown",
+  unstarted: "Not started",
+  started: "In progress",
+  incomplete: "Incomplete",
+  completed: "Completed",
+  abandoned: "Abandoned",
+  unobtainable: "Unobtainable",
+};
 export const gameSchema = z
   .object({
     id: z.string(),

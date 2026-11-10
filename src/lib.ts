@@ -3,6 +3,18 @@ import { Game, Profile, newGame, dayKey, statuses } from "./model";
 export function percentage(earned: number, total: number) {
   return total === 0 ? 0 : (earned / total) * 100;
 }
+export function matchesStatuses(game: Game, selected: string[]) {
+  return (
+    selected.length === 0 ||
+    selected.some((status) =>
+      status === "next"
+        ? game.lane === "Want to Play" && game.status === "unstarted"
+        : status === "incomplete"
+          ? ["started", "incomplete"].includes(game.status)
+          : game.status === status,
+    )
+  );
+}
 export function required(earned: number, total: number, target: number) {
   if (!total) return null;
   const scale = 1000000n;

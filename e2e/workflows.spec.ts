@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-test("aligned card controls, automatic status preview, and pausable woodland background", async ({
+test("multiple status filters and responsive pointer-reactive scenery", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -10,18 +10,103 @@ test("aligned card controls, automatic status preview, and pausable woodland bac
   await page
     .getByLabel("CSV export")
     .setInputFiles({
-      name: "layout.csv",
+      name: "filters.csv",
       mimeType: "text/csv",
       buffer: Buffer.from(
-        'Title,Status,Achievements Earned,Achievements Total,Achv,Genre\nA Short,Active,0,33,33,Adventure\nB A much longer game title that wraps across several lines,Fulfilled,1,33,33,"Adventure, Horror, Action Horror, Puzzle"\nC Complete,Active,33,33,33,Adventure\nD Not played yet,Fulfilled,,,33,Adventure',
+        "Title,Achievements Earned,Achievements Total\nAlpha,0,33\nBeta,1,33\nComplete,33,33\nUnknown,,",
       ),
     });
+  await page.getByRole("button", { name: "Confirm import" }).click();
+  await page.getByRole("button", { name: "Collection", exact: true }).click();
+  await page.getByLabel("Filter statuses", { exact: true }).click();
+  await page.getByRole("checkbox", { name: "Incomplete", exact: true }).check();
+  await page
+    .getByRole("checkbox", { name: "Not started", exact: true })
+    .check();
+  await expect(page.locator(".game-card")).toHaveCount(2);
+  await expect(page.locator(".game-card .status")).toHaveText([
+    "Not started",
+    "In progress",
+  ]);
+  await page.getByRole("checkbox", { name: "Unknown", exact: true }).check();
+  await expect(page.locator(".game-card")).toHaveCount(3);
+  await page.getByRole("button", { name: "Show all statuses" }).click();
+  await expect(page.locator(".game-card")).toHaveCount(4);
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".status-filter")).not.toHaveAttribute("open", "");
+  const offset = () =>
+    page
+      .locator(".ambient-background")
+      .evaluate((el) =>
+        (el as HTMLElement).style.getPropertyValue("--ambient-x"),
+      );
+  await page.mouse.move(100, 150);
+  await expect.poll(offset).not.toBe("");
+  const before = await offset();
+  await page.mouse.move(1300, 850);
+  await expect.poll(offset).not.toBe(before);
+  const forest = await page.locator(".ambient-forest").boundingBox();
+  expect(forest!.width).toBeGreaterThanOrEqual(1440);
+  expect(forest!.height).toBeGreaterThanOrEqual(1000);
+  await page
+    .getByRole("button", { name: "Pause background animation" })
+    .click();
+  const paused = await offset();
+  await page.mouse.move(200, 400);
+  expect(await offset()).toBe(paused);
+  await page
+    .getByRole("button", { name: "Resume background animation" })
+    .click();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect
+    .poll(() =>
+      page
+        .locator(".ambient-scene")
+        .evaluate((el) => getComputedStyle(el).transform),
+    )
+    .toBe("none");
+  await page.getByLabel("Filter statuses", { exact: true }).click();
+  if (process.env.HAVENBOUND_SCREENSHOTS)
+    await page.screenshot({
+      path: process.env.HAVENBOUND_SCREENSHOTS + "/multi-status-background.png",
+      fullPage: true,
+    });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("checkbox", { name: "Incomplete", exact: true }).check();
+  await page
+    .getByRole("checkbox", { name: "Not started", exact: true })
+    .check();
+  await expect(page.locator(".game-card")).toHaveCount(2);
+  const panel = await page.locator(".status-filter-panel").boundingBox();
+  expect(panel!.x).toBeGreaterThanOrEqual(0);
+  expect(panel!.x + panel!.width).toBeLessThanOrEqual(390);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+test("aligned card controls, automatic status preview, and pausable woodland background", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Import collection", exact: true })
+    .click();
+  await page.getByLabel("CSV export").setInputFiles({
+    name: "layout.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      'Title,Status,Achievements Earned,Achievements Total,Achv,Genre\nA Short,Active,0,33,33,Adventure\nB A much longer game title that wraps across several lines,Fulfilled,1,33,33,"Adventure, Horror, Action Horror, Puzzle"\nC Complete,Active,33,33,33,Adventure\nD Not played yet,Fulfilled,,,33,Adventure',
+    ),
+  });
   await expect(
     page.getByRole("row").filter({ hasText: "A Short" }),
   ).toContainText("Not started");
   await expect(
     page.getByRole("row").filter({ hasText: "B A much longer" }),
-  ).toContainText("Started");
+  ).toContainText("In progress");
   await expect(
     page.getByRole("row").filter({ hasText: "C Complete" }),
   ).toContainText("Completed");
@@ -33,16 +118,14 @@ test("aligned card controls, automatic status preview, and pausable woodland bac
   await page.mouse.move(0, 0);
   await page.emulateMedia({ reducedMotion: "reduce" });
   async function aligned(cards: string, control: string) {
-    const positions = await page
-      .locator(cards)
-      .evaluateAll(
-        (nodes, selector) =>
-          nodes.map((n) => ({
-            row: Math.round(n.getBoundingClientRect().top),
-            y: n.querySelector(selector)!.getBoundingClientRect().top,
-          })),
-        control,
-      );
+    const positions = await page.locator(cards).evaluateAll(
+      (nodes, selector) =>
+        nodes.map((n) => ({
+          row: Math.round(n.getBoundingClientRect().top),
+          y: n.querySelector(selector)!.getBoundingClientRect().top,
+        })),
+      control,
+    );
     for (const row of new Set(positions.map((p) => p.row))) {
       const values = positions.filter((p) => p.row === row).map((p) => p.y);
       expect(Math.max(...values) - Math.min(...values)).toBeLessThan(2);

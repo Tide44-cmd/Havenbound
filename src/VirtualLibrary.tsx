@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Trees, Shuffle, Compass } from "lucide-react";
-import { Game } from "./model";
+import { Game, statusLabels } from "./model";
 import {
   alphabet,
   huntCandidates,
@@ -133,7 +133,7 @@ export default function VirtualLibrary({
           >
             <option value="all">All progress</option>
             <option value="unstarted">Not started</option>
-            <option value="started">Started</option>
+            <option value="started">In progress</option>
             <option value="completed">Completed</option>
             <option value="unknown">Unknown</option>
             <option value="next">Want to Play · not started</option>
@@ -233,9 +233,7 @@ export default function VirtualLibrary({
                   </button>
                   <small>{g.platform}</small>
                   <p className="library-progress">
-                    <span>
-                      {g.status === "unstarted" ? "Not started" : g.status}
-                    </span>
+                    <span>{statusLabels[g.status]}</span>
                   </p>
                   <GameProgress game={g} />
                   <GenreBadges game={g} />
