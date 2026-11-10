@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-test("new XCT achievement export powers shelves and Ledger-inspired picks", async ({
+test("conflicting duplicate counts require review before import", async ({
   page,
 }) => {
   await page.goto("/");
@@ -9,12 +9,102 @@ test("new XCT achievement export powers shelves and Ledger-inspired picks", asyn
   await page
     .getByLabel("CSV export")
     .setInputFiles({
-      name: "new-xct.csv",
+      name: "conflicts.csv",
       mimeType: "text/csv",
       buffer: Buffer.from(
-        "Title,Source,Gamertag,Status,Achievements Earned,Achievements Total,Genre\nAlpha,Both,Example,Fulfilled,0,33,Puzzle\nBravo,Both,Example,Active,1,33,Adventure\nComplete,Both,Example,,33,33,Puzzle\nUnknown,Both,Example,,,,Puzzle",
+        "Title,Achievements Earned,Achievements Total\nConflict,24,24\nConflict,175,175",
       ),
     });
+  await expect(
+    page.getByRole("button", { name: "Confirm import" }),
+  ).toBeDisabled();
+  await page
+    .getByRole("combobox", { name: "Achievement counts for Conflict" })
+    .selectOption("24 / 24");
+  await page.getByRole("button", { name: "Confirm import" }).click();
+  await expect(page.getByRole("status")).toContainText("Import saved");
+  await page.getByRole("button", { name: "Collection", exact: true }).click();
+  await expect(page.locator(".game-card")).toHaveCount(1);
+  await expect(
+    page.getByText("24 / 24 achievements", { exact: true }),
+  ).toBeVisible();
+});
+test("fallback totals, genre tags, duplicate rows and animated percentage cards", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Import collection", exact: true })
+    .click();
+  await page
+    .getByLabel("CSV export")
+    .setInputFiles({
+      name: "reordered.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(
+        'Achv,XCT Genre,Title,Genre,Platform,Achievements Total,Achievements Earned\n50,"Action Horror, Horror",HalfGifted,Adventure,"Windows, Xbox One",50,25\n50,"Action Horror, Horror",HalfGifted,Adventure,"Xbox One, Windows, Xbox Play Anywhere",50,25\n33,Horror,Unplayed,Adventure,Xbox One,,',
+      ),
+    });
+  await expect(page.getByText(/1 duplicates consolidated/)).toBeVisible();
+  await page.getByRole("button", { name: "Confirm import" }).click();
+  await expect(page.getByRole("status")).toContainText("Import saved");
+  await page.getByRole("button", { name: "Collection", exact: true }).click();
+  await expect(page.locator(".game-card")).toHaveCount(2);
+  await expect(page.getByText("50%", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("progressbar", { name: "Half completion" }),
+  ).toHaveAttribute("value", "50");
+  await expect(
+    page.getByRole("progressbar", { name: "Unplayed completion" }),
+  ).toHaveAttribute("value", "0");
+  await expect(page.getByText("Action Horror", { exact: true })).toBeVisible();
+  await expect(page.getByText("HalfGifted", { exact: true })).toHaveCount(0);
+  const card = page.locator(".game-card").first();
+  await card.hover();
+  await expect
+    .poll(() => card.evaluate((el) => getComputedStyle(el).transform))
+    .not.toBe("none");
+  if (process.env.HAVENBOUND_SCREENSHOTS)
+    await page.screenshot({
+      path: process.env.HAVENBOUND_SCREENSHOTS + "/updated-cards.png",
+      fullPage: true,
+    });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect
+    .poll(() => card.evaluate((el) => getComputedStyle(el).transform))
+    .toBe("none");
+  expect(
+    await page
+      .locator(".app")
+      .evaluate((el) => getComputedStyle(el, "::before").animationName),
+  ).toBe("none");
+  await page
+    .getByRole("button", { name: "Virtual library", exact: true })
+    .click();
+  await page
+    .getByRole("combobox", { name: "Library genre" })
+    .selectOption("Horror");
+  await expect(page.locator(".library-book")).toHaveCount(2);
+  await expect(page.getByText("50%", { exact: true })).toBeVisible();
+  await page
+    .getByRole("combobox", { name: "Library genre" })
+    .selectOption("Action Horror");
+  await expect(page.locator(".library-book")).toHaveCount(1);
+});
+test("new XCT achievement export powers shelves and Ledger-inspired picks", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Import collection", exact: true })
+    .click();
+  await page.getByLabel("CSV export").setInputFiles({
+    name: "new-xct.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      "Title,Source,Gamertag,Status,Achievements Earned,Achievements Total,Genre\nAlpha,Both,Example,Fulfilled,0,33,Puzzle\nBravo,Both,Example,Active,1,33,Adventure\nComplete,Both,Example,,33,33,Puzzle\nUnknown,Both,Example,,,,Puzzle",
+    ),
+  });
   await page.getByRole("button", { name: "Confirm import" }).click();
   await expect(page.getByRole("status")).toContainText("Import saved");
   await page

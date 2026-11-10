@@ -94,6 +94,7 @@ export default function GameEditor({
                 "platform",
                 "edition",
                 "genre",
+                "xctGenre",
                 "cover",
               ] as const
             ).map((k) => (
@@ -105,6 +106,7 @@ export default function GameEditor({
                     platform: "Platform / stack",
                     edition: "Edition",
                     genre: "Genre",
+                    xctGenre: "XCT Genre · comma separated",
                     cover: "Cover image URL (optional)",
                   }[k]
                 }

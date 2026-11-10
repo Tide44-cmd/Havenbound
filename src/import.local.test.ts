@@ -18,8 +18,21 @@ for (const path of (process.env.HAVENBOUND_CSV_FIXTURES || "")
           (g) => g.earned === null && g.total === null && !g.included,
         ),
       ).toBe(true);
-    const first = mergeGames([], parsed.games, map);
-    const second = mergeGames(first.games, parsed.games, map);
+    const preview = mergeGames([], parsed.games, map);
+    // Exercise the review flow without asserting which conflicting real-world count is correct.
+    const resolutions = Object.fromEntries(
+      preview.conflictGroups.map((g) => [g.key, g.choices[0]]),
+    );
+    const first = mergeGames([], parsed.games, map, false, false, resolutions);
+    expect(first.conflicts).toEqual([]);
+    const second = mergeGames(
+      first.games,
+      parsed.games,
+      map,
+      false,
+      false,
+      resolutions,
+    );
     expect(second.added).toBe(0);
     expect(second.games.length).toBe(first.games.length);
     console.log({

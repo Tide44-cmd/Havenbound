@@ -13,7 +13,7 @@ export default function Importer({
   onImport,
 }: {
   games: Game[];
-  onImport: (g: Game[]) => void;
+  onImport: (g: Game[], aliases: Record<string, string>) => void;
 }) {
   const [csv, setCsv] = useState<ReturnType<typeof parseCsv> | null>(null);
   const [map, setMap] = useState<Mapping>({});
@@ -21,6 +21,7 @@ export default function Importer({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [matchTitles, setMatchTitles] = useState(false);
+  const [resolutions, setResolutions] = useState<Record<string, string>>({});
   const parsed = csv ? importRows(csv.rows, map) : null;
   const preview = parsed
     ? mergeGames(
@@ -29,6 +30,7 @@ export default function Importer({
         mode === "replace" ? { ...map, owned: map.owned || "__owned" } : map,
         mode === "achievements",
         matchTitles,
+        resolutions,
       )
     : null;
   return (
@@ -52,6 +54,7 @@ export default function Importer({
                 throw Error("Please choose a CSV under 20 MB.");
               const result = parseCsv(await file.text());
               setCsv(result);
+              setResolutions({});
               setMap(guessMapping(result.headers));
               setMessage("");
               setError("");
@@ -69,7 +72,11 @@ export default function Importer({
             Series X|S / Standard when absent; change them for known stacks.
             Ownership does not establish achievement progress. Known counts
             determine progress: 0 = not started, some = started, all =
-            completed. Blank counts stay unknown. Genre is imported separately.
+            completed. Columns match by name, not position. Achv supplies the
+            total when Achievements Total is blank. With Achv mapped and a known
+            total, blank earned means zero; these unplayed games are not
+            automatically included in achievement statistics. Genre and XCT
+            Genre split on commas, preserving multiword tags.
           </p>
           <label className="checks">
             <input
@@ -116,11 +123,48 @@ export default function Importer({
             <>
               <p>
                 {preview.added} new · {preview.updated} matched ·{" "}
+                {preview.duplicates} duplicates consolidated ·{" "}
                 {parsed.errors.length +
                   csv.errors.length +
                   preview.conflicts.length}{" "}
                 errors
               </p>
+              {preview.duplicates > 0 && (
+                <p className="notice">
+                  Duplicates with matching identity are consolidated, ignoring
+                  Cloud Gaming / Play Anywhere labels and platform order. Notes,
+                  favourites and plan references are retained. If duplicate
+                  plans disagree, the first backlog list and earliest scheduled
+                  start are kept. Different achievement counts block import for
+                  review.
+                </p>
+              )}
+              {preview.conflictGroups.map((group) => (
+                <label className="notice" key={group.key}>
+                  {group.name} · conflicting counts (
+                  {group.key.startsWith("existing:")
+                    ? "saved collection"
+                    : "CSV"}
+                  )
+                  <select
+                    aria-label={"Achievement counts for " + group.name}
+                    value={resolutions[group.key] || ""}
+                    onChange={(e) =>
+                      setResolutions({
+                        ...resolutions,
+                        [group.key]: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="">
+                      Choose which achievement counts to keep…
+                    </option>
+                    {group.choices.map((choice) => (
+                      <option key={choice}>{choice}</option>
+                    ))}
+                  </select>
+                </label>
+              ))}
               {mode === "achievements" && (
                 <p className="muted">
                   Unmatched rows are skipped. Match Product ID, platform and
@@ -164,7 +208,8 @@ export default function Importer({
                   !!parsed.errors.length ||
                   !!csv.errors.length ||
                   !!preview.conflicts.length ||
-                  (mode === "achievements" && (!map.earned || !map.total))
+                  (mode === "achievements" &&
+                    (!map.earned || (!map.total && !map.totalFallback)))
                 }
                 onClick={() => {
                   const next = preview.games;
@@ -176,7 +221,7 @@ export default function Importer({
                     );
                     return;
                   }
-                  onImport(valid.data);
+                  onImport(valid.data, preview.aliases);
                   setMessage(
                     "Import saved. Your notes, backlog lists and calendar plans have been preserved.",
                   );

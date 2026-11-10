@@ -77,9 +77,11 @@ export const fields = [
   "platform",
   "edition",
   "genre",
+  "xctGenre",
   "status",
   "earned",
   "total",
+  "totalFallback",
   "owned",
   "included",
   "coop",
@@ -91,7 +93,9 @@ const aliases: Record<string, string[]> = {
   productId: ["productid", "xboxproductid", "id"],
   platform: ["platform", "platforms"],
   edition: ["edition", "stack"],
-  genre: ["genre", "xctgenre"],
+  genre: ["genre"],
+  xctGenre: ["xctgenre"],
+  totalFallback: ["achv"],
   status: ["status", "completionstatus"],
   earned: ["earned", "achievementsearned", "unlockedachievements"],
   total: [
@@ -106,7 +110,10 @@ const aliases: Record<string, string[]> = {
   cover: ["cover", "coverurl", "imageurl"],
 };
 export function guessMapping(headers: string[]): Mapping {
-  const xct = headers.includes("Gamertag") && headers.includes("Source");
+  const normalized = headers.map((h) =>
+    h.toLowerCase().replace(/[^a-z0-9]/g, ""),
+  );
+  const xct = normalized.includes("gamertag") && normalized.includes("source");
   return Object.fromEntries(
     fields.map((f) => [
       f,
@@ -119,8 +126,30 @@ export function guessMapping(headers: string[]): Mapping {
   );
 }
 const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+export const cleanTitle = (title: string) =>
+  title.replace(/\s*Gifted\s*$/i, "").trim();
+export function genreTags(g: Pick<Game, "genre" | "xctGenre">) {
+  const tags = [g.genre, g.xctGenre]
+    .flatMap((s) => (s || "").split(","))
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return [...new Map(tags.map((t) => [t.toLowerCase(), t])).values()];
+}
+const platformKey = (platform: string) =>
+  [
+    ...new Set(
+      platform
+        .split(",")
+        .map(normalize)
+        .filter(
+          (p) => !["xbox cloud gaming", "xbox play anywhere"].includes(p),
+        ),
+    ),
+  ]
+    .sort()
+    .join(",");
 export function identity(g: Game) {
-  return `${normalize(g.productId) || normalize(g.name)}|${normalize(g.platform)}|${normalize(g.edition)}`;
+  return `${normalize(g.productId) || normalize(cleanTitle(g.name))}|${platformKey(g.platform)}|${normalize(g.edition)}`;
 }
 export function importRows(rows: Record<string, string>[], map: Mapping) {
   const games: Game[] = [];
@@ -128,11 +157,11 @@ export function importRows(rows: Record<string, string>[], map: Mapping) {
   for (const [i, row] of rows.entries()) {
     const val = (key: (typeof fields)[number]) =>
       (row[map[key] || ""] || "").trim();
-    if (!val("name")) {
+    if (!cleanTitle(val("name"))) {
       errors.push(`Row ${i + 2}: game name is required`);
       continue;
     }
-    const g = newGame(val("name"));
+    const g = newGame(cleanTitle(val("name")));
     g.source = "csv";
     g.status = "unknown";
     for (const key of [
@@ -141,6 +170,7 @@ export function importRows(rows: Record<string, string>[], map: Mapping) {
       "edition",
       "cover",
       "genre",
+      "xctGenre",
     ] as const)
       if (val(key)) g[key] = val(key);
     const state = val("status").toLowerCase();
@@ -151,14 +181,18 @@ export function importRows(rows: Record<string, string>[], map: Mapping) {
     if (state) g.status = state as Game["status"];
     let bad = false;
     for (const key of ["earned", "total"] as const) {
-      if (val(key)) {
-        const n = Number(val(key));
+      const raw = val(key) || (key === "total" ? val("totalFallback") : "");
+      if (raw) {
+        const n = Number(raw);
         if (!Number.isSafeInteger(n) || n < 0 || n > 10000000) {
           errors.push(`Row ${i + 2}: ${key} must be a non-negative integer`);
           bad = true;
         } else g[key] = n;
       }
     }
+    const inferredZero =
+      !!map.totalFallback && !val("earned") && g.total !== null;
+    if (inferredZero) g.earned = 0;
     for (const key of ["owned", "included", "coop"] as const) {
       if (val(key)) {
         if (!/^(true|false|yes|no|1|0)$/i.test(val(key))) {
@@ -171,7 +205,7 @@ export function importRows(rows: Record<string, string>[], map: Mapping) {
       errors.push(`Row ${i + 2}: earned exceeds total`);
       bad = true;
     }
-    if (!map.included && g.total !== null && g.earned !== null)
+    if (!map.included && g.total !== null && g.earned !== null && !inferredZero)
       g.included = true;
     g.status = achievementStatus(g);
     if (!bad) games.push(g);
@@ -184,12 +218,17 @@ export function mergeGames(
   map: Mapping,
   achievementsOnly = false,
   matchUniqueTitles = false,
+  resolutions: Record<string, string> = {},
 ) {
-  const result = [...existing];
+  const old = deduplicate(existing, resolutions, "existing:"),
+    fresh = deduplicate(incoming, resolutions, "incoming:");
+  const result = old.games;
+  incoming = fresh.games;
   const byIdentity = new Map(result.map((g, i) => [identity(g), i]));
   const titleKey = (g: Game) => identity({ ...g, productId: "" });
   const byTitle = new Map<string, number[]>();
-  const looseKey = (g: Game) => `${normalize(g.name)}|${normalize(g.edition)}`;
+  const looseKey = (g: Game) =>
+    `${normalize(cleanTitle(g.name))}|${normalize(g.edition)}`;
   const loose = new Map<string, number[]>();
   result.forEach((g, i) =>
     loose.set(looseKey(g), [...(loose.get(looseKey(g)) || []), i]),
@@ -198,7 +237,7 @@ export function mergeGames(
   incoming.forEach((g) =>
     incomingNames.set(looseKey(g), (incomingNames.get(looseKey(g)) || 0) + 1),
   );
-  const conflicts: string[] = [];
+  const conflicts: string[] = [...old.conflicts, ...fresh.conflicts];
   result.forEach((g, i) =>
     byTitle.set(titleKey(g), [...(byTitle.get(titleKey(g)) || []), i]),
   );
@@ -234,17 +273,25 @@ export function mergeGames(
       for (const key of fields) {
         if (
           key === "name" ||
+          key === "totalFallback" ||
           (achievementsOnly && !["earned", "total", "included"].includes(key))
         )
           continue;
         if (
-          map[key] &&
+          (map[key] ||
+            (key === "total" && map.totalFallback) ||
+            (key === "earned" && map.totalFallback)) &&
           (key !== "productId" || !!game.productId) &&
           (!(key === "earned" || key === "total") || game[key] !== null)
         )
           Object.assign(next, { [key]: game[key] });
       }
-      if (!map.included && game.total !== null && game.earned !== null)
+      if (
+        !map.included &&
+        (game.included || !map.totalFallback || !!game.earned) &&
+        game.total !== null &&
+        game.earned !== null
+      )
         next.included = true;
       next.status = achievementStatus(next);
       if (next.status !== "completed") next.completedAt = "";
@@ -262,7 +309,125 @@ export function mergeGames(
       added++;
     }
   }
-  return { games: result, added, updated, conflicts };
+  return {
+    games: result,
+    added,
+    updated,
+    conflicts,
+    conflictGroups: [...old.conflictGroups, ...fresh.conflictGroups],
+    aliases: old.aliases,
+    duplicates: old.removed + fresh.removed,
+  };
+}
+
+export function deduplicate(
+  games: Game[],
+  resolutions: Record<string, string> = {},
+  prefix = "",
+) {
+  const result: Game[] = [];
+  const groups = new Map<string, Game[]>();
+  const aliases: Record<string, string> = {};
+  const conflicts: string[] = [];
+  const conflictGroups: { key: string; name: string; choices: string[] }[] = [];
+  let removed = 0;
+  for (const original of games) {
+    const game = { ...original, name: cleanTitle(original.name) };
+    const key = identity(game);
+    groups.set(key, [...(groups.get(key) || []), game]);
+  }
+  const pair = (g: Game) => `${g.earned ?? "?"} / ${g.total ?? "?"}`;
+  for (const [identityKey, group] of groups) {
+    const key = prefix + identityKey;
+    const conflicting = ["earned", "total"].some(
+      (field) =>
+        new Set(
+          group
+            .map((g) => g[field as "earned" | "total"])
+            .filter((v) => v !== null),
+        ).size > 1,
+    );
+    let selected: Game | undefined;
+    if (conflicting) {
+      const choices = [...new Set(group.map(pair))];
+      conflictGroups.push({ key, name: group[0].name, choices });
+      selected = group.find((g) => pair(g) === resolutions[key]);
+      if (!selected) {
+        conflicts.push(
+          `Conflicting duplicate achievement counts for ${group[0].name}. Choose counts below or correct platform/edition mappings if these are distinct stacks.`,
+        );
+        result.push(group[0]);
+        continue;
+      }
+    }
+    let previous = group[0];
+    for (const game of group.slice(1)) {
+      removed++;
+      aliases[game.id] = previous.id;
+      const unique = (a: string, b: string) =>
+        [...new Set([a, b].filter(Boolean))].join("\n\n");
+      previous = {
+        ...previous,
+        earned: previous.earned ?? game.earned,
+        total: previous.total ?? game.total,
+        owned: previous.owned || game.owned,
+        included: previous.included || game.included,
+        favorite: previous.favorite || game.favorite,
+        tags: [...new Set([...previous.tags, ...game.tags])],
+        notes: unique(previous.notes, game.notes),
+        genre: genreTags({ genre: previous.genre, xctGenre: game.genre }).join(
+          ", ",
+        ),
+        xctGenre: genreTags({
+          genre: previous.xctGenre,
+          xctGenre: game.xctGenre,
+        }).join(", "),
+        lane: previous.lane || game.lane,
+        completedAt: previous.completedAt || game.completedAt,
+        cover: previous.cover || game.cover,
+        priority: [previous.priority, game.priority].includes("High")
+          ? "High"
+          : previous.priority,
+        ...(!previous.lane && game.lane
+          ? {
+              remaining: game.remaining,
+              played: game.played,
+              estimated: game.estimated,
+            }
+          : {}),
+      };
+    }
+    if (selected)
+      previous = {
+        ...previous,
+        earned: selected.earned,
+        total: selected.total,
+      };
+    previous.status = achievementStatus(previous);
+    result.push(previous);
+  }
+  return { games: result, aliases, conflicts, conflictGroups, removed };
+}
+export function remapPlans(
+  p: Profile,
+  games: Game[],
+  aliases: Record<string, string>,
+): Profile {
+  const id = (value: string) => aliases[value] || value;
+  const plans = new Map<string, string>();
+  p.schedule.forEach((s) => {
+    const key = id(s.gameId);
+    plans.set(
+      key,
+      plans.has(key) ? [plans.get(key)!, s.start].sort()[0] : s.start,
+    );
+  });
+  return {
+    ...p,
+    games,
+    order: [...new Set(p.order.map(id))],
+    schedule: [...plans].map(([gameId, start]) => ({ gameId, start })),
+  };
 }
 
 // Planning intent never overrides known achievement progress. 0/0 is not a completion.

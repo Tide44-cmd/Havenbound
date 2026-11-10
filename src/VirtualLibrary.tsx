@@ -1,7 +1,14 @@
 import { useMemo, useState } from "react";
 import { Trees, Shuffle, Compass } from "lucide-react";
 import { Game } from "./model";
-import { alphabet, huntCandidates, randomGames, unfinished } from "./lib";
+import {
+  alphabet,
+  huntCandidates,
+  randomGames,
+  unfinished,
+  genreTags,
+} from "./lib";
+import { GameProgress, GenreBadges } from "./GameProgress";
 const modes = [
   "Shelves",
   "A–Z challenge",
@@ -27,13 +34,13 @@ export default function VirtualLibrary({
   const [limit, setLimit] = useState(48);
   const owned = useMemo(() => games.filter((g) => g.owned), [games]);
   const genres = useMemo(
-    () => [...new Set(owned.map((g) => g.genre).filter(Boolean))].sort(),
+    () => [...new Set(owned.flatMap(genreTags))].sort(),
     [owned],
   );
   const filtered = owned.filter(
     (g) =>
       g.name.toLowerCase().includes(search.toLowerCase()) &&
-      (!genre || g.genre === genre) &&
+      (!genre || genreTags(g).includes(genre)) &&
       (progress === "all" ||
         (progress === "next"
           ? g.lane === "Want to Play" && g.status === "unstarted"
@@ -62,7 +69,7 @@ export default function VirtualLibrary({
   display.slice(0, limit).forEach((g) => {
     const key =
       mode === "Shelves"
-        ? g.genre || "Uncategorised"
+        ? genre || genreTags(g)[0] || "Uncategorised"
         : mode === "A–Z challenge"
           ? `${letter} · unfinished adventures`
           : "Your next adventures";
@@ -226,11 +233,12 @@ export default function VirtualLibrary({
                   </button>
                   <small>{g.platform}</small>
                   <p className="library-progress">
-                    {g.earned ?? "?"} / {g.total ?? "?"} achievements{" "}
                     <span>
                       {g.status === "unstarted" ? "Not started" : g.status}
                     </span>
                   </p>
+                  <GameProgress game={g} />
+                  <GenreBadges game={g} />
                   <button
                     disabled={
                       g.lane === "Want to Play" || g.status === "completed"

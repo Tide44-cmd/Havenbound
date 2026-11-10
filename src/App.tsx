@@ -40,7 +40,9 @@ import {
   percentage,
   stats,
   achievementStatus,
+  remapPlans,
 } from "./lib";
+import { GameProgress, GenreBadges } from "./GameProgress";
 import VirtualLibrary from "./VirtualLibrary";
 import GameEditor from "./GameEditor";
 import Importer from "./Importer";
@@ -365,7 +367,8 @@ export default function App() {
                   ? "Your collection. Your journey. Your next completion."
                   : (
                       {
-                        'Virtual library': 'Your collection on the shelves. Your next hunt within reach.',
+                        "Virtual library":
+                          "Your collection on the shelves. Your next hunt within reach.",
                         Collection:
                           "Every game has a place. Find your next adventure.",
                         "My backlog":
@@ -775,13 +778,10 @@ export default function App() {
                           {g.platform} · {g.edition}
                         </small>
                         <div className="game-meta">
-                          <span>
-                            {g.total !== null && g.earned !== null
-                              ? `${g.earned}/${g.total} achievements`
-                              : "Achievements unknown"}
-                          </span>
                           <span>{g.priority}</span>
                         </div>
+                        <GameProgress game={g} />
+                        <GenreBadges game={g} />
                         <select
                           aria-label={"Backlog list for " + g.name}
                           value={g.lane || ""}
@@ -1063,7 +1063,9 @@ export default function App() {
             <>
               <Importer
                 games={p.games}
-                onImport={(games) => update({ ...p, games })}
+                onImport={(games, aliases) =>
+                  update(remapPlans(p, games, aliases))
+                }
               />
               <section className="panel">
                 <h2>Your havens</h2>

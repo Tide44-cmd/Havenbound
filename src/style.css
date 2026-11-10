@@ -1508,6 +1508,102 @@ td {
 .library-controls .toolbar input {
   flex: 1;
 }
+.card-progress {
+  margin: 12px 0 14px;
+}
+.card-progress > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 10px;
+  color: #aebca3;
+}
+.card-progress strong {
+  font-size: 12px;
+  color: #d3c48b;
+  font-weight: 600;
+}
+.card-progress progress {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+.genre-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 10px 0 14px;
+}
+.genre-badges span {
+  font-size: 9px;
+  line-height: 1.5;
+  padding: 3px 7px;
+  border-radius: 12px;
+  background: #9bae6c12;
+  border: 1px solid #85935d38;
+  color: #b8c6a4;
+}
+.game-card,
+.library-book {
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease,
+    border-color 220ms ease;
+}
+.game-card:focus-within,
+.library-book:focus-within {
+  border-color: #a7b67b;
+  box-shadow: 0 0 20px #b6c7991c;
+}
+@media (hover: hover) and (pointer: fine) {
+  .game-card:hover,
+  .library-book:hover {
+    transform: perspective(1000px) translateY(-4px) rotateX(1.4deg)
+      rotateY(-1.3deg);
+    border-color: #98aa6d;
+    box-shadow:
+      0 12px 25px #0005,
+      0 0 22px #b6c79924;
+  }
+}
+.app {
+  position: relative;
+  isolation: isolate;
+}
+.app::before {
+  content: "";
+  position: fixed;
+  inset: -15%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 65% 20%, #71845115, transparent 50%),
+    radial-gradient(ellipse at 25% 75%, #a38c4310, transparent 45%);
+  animation: woodland-drift 28s ease-in-out infinite alternate;
+  will-change: transform;
+}
+@keyframes woodland-drift {
+  from {
+    transform: translate3d(-2%, 0, 0);
+  }
+  to {
+    transform: translate3d(2%, 3%, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app::before {
+    animation: none;
+    will-change: auto;
+  }
+  .game-card,
+  .library-book {
+    transition: none !important;
+    transform: none !important;
+  }
+}
 @media (max-width: 480px) {
   .library-books {
     grid-template-columns: repeat(2, minmax(0, 1fr));

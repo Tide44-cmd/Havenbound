@@ -30,7 +30,11 @@ npm run preview
 
 Open **Import & settings**, choose a CSV, review mappings and preview, then confirm. The expected XCT headers from the supplied examples are `Title,Source,Gamertag,Publisher,Developer,Type,Date,Price,Currency,Market,Status,Product ID`.
 
-XCT's `Status` is a purchase state (Active/Fulfilled), **not** achievement progress. It is intentionally unmapped for XCT files, including newer exports without Product IDs. The November 10 format supports `Title`, `Achievements Earned`, `Achievements Total`, `Genre` and `Platform`. Known counts derive progress: zero earned is unstarted, at least one is started, and earned equal to a positive total is completed. `0/0` is not a completion. Blank counts are unknown, not zero. `Achv` is not used as a substitute for the explicit achievement total. Genre is optional; older backups receive an empty genre automatically.
+XCT's `Status` is a purchase state (Active/Fulfilled), **not** achievement progress. It is intentionally unmapped for XCT files, including newer exports without Product IDs. Header mapping uses names, not column positions, and can be adjusted in the preview. `Achievements Total` takes precedence; `Achv` supplies a per-row fallback total. With Achv mapped and a known total, blank earned counts mean zero (unplayed). Without a known total/fallback, blanks remain unknown. Inferred unplayed games are not automatically included in the overall achievement denominator; explicitly provided earned/total pairs are included unless overridden. Known counts derive progress: zero earned is unstarted, at least one is started, and earned equal to a positive total is completed. `0/0` is not a completion.
+
+Both `Genre` and `XCT Genre` are imported and displayed as genre badges. Commas separate tags; spaces do not: `Action Horror, Horror` creates `Action Horror` and `Horror`. Both tags are individually filterable in Virtual library. Custom personal tags remain separate. Old backups receive empty optional genre fields automatically.
+
+Trailing export suffix `Gifted` is removed (including attached suffixes such as `Fallout 76Gifted`). Internal words are retained, and `(PC)`/edition labels remain intact. Importing also cleans existing matched titles.
 
 Older exports may omit platform and achievements: missing platforms default to Xbox Series X|S / Standard, while progress is unknown unless explicitly provided. Ownership alone never includes a title in achievement statistics. Bundles/DLC are retained as exported titles; no catalogue API infers their contents. Mark them unowned or adjust their inclusion as appropriate.
 
@@ -38,7 +42,9 @@ When upgrading an older collection, newer exports may omit Product IDs and chang
 
 The importer handles quoted commas, newlines, UTF-8 BOM and delimiter detection. Map alternate headers explicitly. Any invalid row blocks confirmation so errors cannot silently discard data. Files are limited to 20 MB.
 
-Identity uses Product ID plus platform and edition. Without an ID, it uses normalized title, platform and edition. A missing-ID record can later acquire an ID via a matching title. Reimporting updates mapped fields and preserves local notes, favourites, estimates and plans. Missing achievement counts do not erase known ones. Unknown platform stacks cannot be inferred: correct mappings/editions before merging when necessary.
+Identity uses Product ID plus platform and edition. Without an ID, it uses the cleaned title, platform and edition. Platform order, duplicate platform labels and capability-only `Xbox Cloud Gaming` / `Xbox Play Anywhere` labels do not create separate stacks. Actual platform differences, Product IDs, editions and title distinctions such as `(PC)` remain significant. A missing-ID record can later acquire an ID via a matching title.
+
+Import preview reports consolidated duplicates, including duplicates already saved. Notes and genre/personal tags are combined, favourites retained, and backlog order/calendar references reassigned to the retained game ID. If duplicate plans differ, the first backlog list and earliest start date are kept; review your calendar after consolidation. Different achievement counts for the same identity require an explicit count selection in the import preview. Alternatively correct platform/edition mappings if they really are separate stacks. No conflicting count is silently chosen. Preview is non-destructive until confirmation; exporting a backup first is recommended. Reimports preserve personal plans and unmapped data.
 
 **Merge** is recommended. **Replace** marks old records unowned, then merges the new owned collection, preserving unrelated planning and achievement records. **Clear owned collection** also retains records and plans. Use the Owned only collection filter to show/hide these records.
 
@@ -59,6 +65,8 @@ Known achievement counts take precedence over manual progress and planning lists
 ## Virtual library and hunt pickers
 
 Open **Virtual library** to browse genre shelves with title search, genre/progress filters, artwork URLs or woodland fallbacks, and game editing. Shelves render 48 games at a time. Artwork is not fetched automatically from Xbox.
+
+Collection and library cards show earned/total counts, a completion percentage rounded to one decimal, and an accessible progress bar. Missing counts and zero-total games show no misleading percentage. Cards tilt and glow slightly on pointer hover; a slow woodland-light background adds subtle movement. Reduced-motion preferences disable the tilt and background animation, and touch devices do not receive hover motion.
 
 - **A–Z challenge** lists owned started/incomplete and unstarted games by initial letter, with counts for each letter. Accents are normalized, “The” stays under T, and numbers/symbols use #. Unknown progress is excluded.
 - **My next 10** picks up to ten distinct random unfinished games, or fewer if the eligible collection is smaller.
